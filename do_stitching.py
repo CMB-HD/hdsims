@@ -10,6 +10,7 @@ patcher = Foregrounds(
     final_width=12,
     new_res=res,
     apod_width=1,
+    output_path = "/gpfs/projects/SehgalGroup/jange/final/"
     l_max = 24000)
 
 for frequency in ['030','090','148','219','277','350']:

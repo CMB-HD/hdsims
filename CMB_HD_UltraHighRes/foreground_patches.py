@@ -22,11 +22,12 @@ class Foregrounds:
     #############################################
     
     def __init__(self, ra, dec, final_width, apod_width, 
-                 new_res, l_max, log_level=logging.INFO):
+                 new_res, output_path, l_max, log_level=logging.INFO):
         self.ra = ra
         self.dec = dec
         self.final_width = final_width
         self.apod_width = apod_width
+        self.output_path = output_path
         self.new_res = new_res
         self.l_max = l_max
 
@@ -203,9 +204,8 @@ class Foregrounds:
             deconvolve_pixel_window = False
             
         fullsky_res = hp.nside2resol(nside, arcmin=True)
-
+        old_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
         new_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
-        old_res_path = self.output_path + component + "/" + frequency + "/" + str(fullsky_res) + "/"
         
         if do_fullsky_part:
             self.load_fullsky(frequency, data_path, fullsky_res, fullsky_output_path = old_res_path,
@@ -318,14 +318,14 @@ class Foregrounds:
             pixel = enmap.sky2pix(shape, wcs, coord_pos)
             pixel_ra = int(round(pixel[1][0]))
             if pixel_ra >= initial_patch.data.shape[1]:
-                return pixel_ra-1
+                return initial_patch.data.shape[1]-1
             return pixel_ra
         def get_pixel_dec(dec, shape=initial_patch.data.shape, wcs=initial_patch.data.wcs):
             coord_pos = [[np.deg2rad(dec)], [np.deg2rad(0)]]
             pixel = enmap.sky2pix(shape, wcs, coord_pos)
             pixel_dec = int(round(pixel[0][0]))
             if pixel_dec >= initial_patch.data.shape[0]:
-                return pixel_dec-1
+                return initial_patch.data.shape[0]-1
             return pixel_dec
 
         flux_feature = str(int(frequency)) + 'GHz_flux'
@@ -377,7 +377,7 @@ class Foregrounds:
 
         return innerPatch
 
-    def generate_discrete_foreground_from_custom_catalog(self, component, frequency, data_path, catalog):
+    def generate_discrete_foreground_from_custom_catalog(self, component, frequency, catalog):
         old_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
         new_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
 
@@ -529,3 +529,57 @@ class Foregrounds:
         patch_map_so.write_map(output_path + "inner_patch_stitched")
         
         return patch_map_so
+
+    ############################################# CIB
+
+    def get_flux2temp_unit_conversion(self, freq):
+        # divide map in Jy/str by this factor to get in delta T / T units:
+        unit_conversions = {30: 7.364967e7, 90: 5.526540e8, 148: 1.072480e9, 219: 1.318837e9, 277: 1.182877e9, 350: 8.247628e8}
+        return unit_conversions[freq]
+    
+    def uK_to_mJy_per_str(self, x, freq, TCMB=2.7255e6):
+        return (x / TCMB) * self.get_flux2temp_unit_conversion(freq) * 1e3
+    
+    def make_catalog_from_sims(self, sims, component):
+        try:
+            os.makedirs(self.output_path + component, exist_ok=True)
+            self.logger.info(f"Made directory: {self.output_path + component}")
+        except FileExistsError:
+            self.logger.info(f"Directory already exists: {self.output_path + component}")
+        
+        width = self.final_width + 2*self.apod_width
+        output_catalog_name = self.output_path + component + f"/sources_in_{width}x{width}_{self.ra},{self.dec}.csv"
+        
+        freqs = sorted(list(sims.keys()))
+        max_freq = np.max(freqs)
+        shape = sims[max_freq].shape
+        wcs = sims[max_freq].wcs
+        posmap = np.rad2deg(enmap.posmap(shape, wcs))
+        ra_map = posmap[1]
+        dec_map = posmap[0]
+    
+        flux_sims = {}
+        for freq in freqs:
+            flux_sims[freq] = self.uK_to_mJy_per_str(sims[freq].copy(), freq) * sims[freq].pixsizemap()
+        nonzero_mask = np.greater(flux_sims[max_freq], 0)
+    
+        catalog_dict = {'ra_deg': ra_map[nonzero_mask], 'dec_deg': dec_map[nonzero_mask]}
+        for freq in freqs:
+            catalog_dict[f'{freq}GHz_flux'] = flux_sims[freq][nonzero_mask]
+        catalog = pd.DataFrame(catalog_dict)
+
+        catalog.to_csv(output_catalog_name)
+        
+        return catalog
+
+    def add_gauss_scatter_to_coords(self, ras, decs, shape, wcs, seed=0, sigma_pix_frac=0.2):
+        # get avg width and height of each pixel
+        avg_pixel_width, avg_pixel_height = np.rad2deg(enmap.pixshape(shape, wcs))
+        # add some scatter around ra/dec within width/height of pixel:
+        np.random.seed(seed)
+        ra_scatter = np.random.normal(loc=0, scale=avg_pixel_width * sigma_pix_frac, size=len(ras))
+        dec_scatter = np.random.normal(loc=0, scale=avg_pixel_height * sigma_pix_frac, size=len(decs))
+        np.random.seed(None) # un-set the seed
+        random_ras = ras + ra_scatter
+        random_decs = decs + dec_scatter
+        return random_ras, random_decs
