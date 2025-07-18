@@ -204,7 +204,7 @@ class Foregrounds:
             deconvolve_pixel_window = False
             
         fullsky_res = hp.nside2resol(nside, arcmin=True)
-        old_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
+        old_res_path = self.output_path + component + "/" + frequency + "/" + str(fullsky_res) + "/"
         new_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
         
         if do_fullsky_part:
@@ -358,7 +358,6 @@ class Foregrounds:
         return apodized_patch
 
     def generate_discrete_foreground(self, component, frequency, data_path, make_catalog = True):
-        old_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
         new_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
 
         scaling_factor = 1.0
@@ -378,7 +377,6 @@ class Foregrounds:
         return innerPatch
 
     def generate_discrete_foreground_from_custom_catalog(self, component, frequency, catalog):
-        old_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
         new_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
 
         largerPatch_UHR = self.generate_largerPatch_from_catalog(catalog, frequency, scaling_factor = 1.0, patch_output_path = new_res_path)

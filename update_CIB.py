@@ -11,7 +11,7 @@ patcher = Foregrounds(
     apod_width=1,
     l_max = 24000,
     output_path = "/gpfs/projects/SehgalGroup/jange/hdsims/output/")
-'''
+
 S10_CIB_sim = {
     30: enmap.read_map(f"/gpfs/projects/SehgalGroup/jange/hdsims/output/CIB/030/0.42943580147717575/initial_patch"),
     90: enmap.read_map(f"/gpfs/projects/SehgalGroup/jange/hdsims/output/CIB/090/0.42943580147717575/initial_patch"),
@@ -28,8 +28,8 @@ wcs = S10_CIB_sim[90].wcs
 new_CIB_catalog['ra_deg'], new_CIB_catalog['dec_deg'] = patcher.add_gauss_scatter_to_coords(new_CIB_catalog['ra_deg'].values, new_CIB_catalog['dec_deg'].values, shape, wcs, sigma_pix_frac=0.2)
 
 new_CIB_catalog.to_csv("/gpfs/projects/SehgalGroup/jange/hdsims/output/CIB_updated/sources_in_14x14_6,6.csv")
-'''
 new_CIB_catalog = pd.read_csv("/gpfs/projects/SehgalGroup/jange/hdsims/output/CIB_updated/sources_in_14x14_6,6.csv")
+
 component = 'CIB_updated'
 print(component)
 for frequency in ['350','277','219','148','090','030']:
