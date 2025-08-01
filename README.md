@@ -3,7 +3,7 @@
 This repository contains the methods to simulate and analyze ultra-high-resolution sky patches for CMB-HD, including
 - Maps of diffuse foregrounds kSZ, tSZ, and lensing convergence
 - Maps of discrete foregrounds CIB and radio
-- Maps of Unlensed CMB and Lensed CMB based on lensing convergence maps
+- Maps of Unlensed CMB and Lensed CMB using lensing convergence map
 - Binning procedure and data covariance matrices
 
 To do so, we take the fullsky maps for diffuse foregrounds and the discrete catalogs from [Sehgal et al. (2010)](https://lambda.gsfc.nasa.gov/simulation/full_sky_sims_ov.html).
