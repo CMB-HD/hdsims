@@ -17,9 +17,9 @@ Clone this repository using the command:
 ```
 git clone https://github.com/CMB-HD/hdsims
 ```
-To generate CMB-HD simulations using this repository, you will need to install Python 3 and several packages including pixell, pspy, numpy, healpy, scipy, and pandas. We use Python 3.11.6, pixell 0.23.14, pspy 1.7.5, numpy 1.26.0, healpy 1.17.1, scipy 1.11.3, and pandas 2.1.3. 
+To generate CMB-HD simulations using this repository, you will need to install Python 3 and several Python packages. We make use of Python 3.11.6, pixell 0.23.14, pspy 1.7.5, numpy 1.26.0, healpy 1.17.1, scipy 1.11.3, and pandas 2.1.3. 
 
-Download the full sky maps of the diffuse foregrounds and the discrete catalogs used in [Sehgal et al. (2010)](https://lambda.gsfc.nasa.gov/simulation/full_sky_sims_ov.html) at all frequencies. These data can be found here: (https://lambda.gsfc.nasa.gov/data/tools/simulations). These data can be downloading directly by running
+The full sky maps of the diffuse foregrounds and the discrete catalogs used in [Sehgal et al. (2010)](https://lambda.gsfc.nasa.gov/simulation/full_sky_sims_ov.html) at all frequencies can be found here: (https://lambda.gsfc.nasa.gov/data/tools/simulations) where they can downloaded directly from the website. These data can be downloaded directly from the command line by running
 
 ```
 source download_files.sh
