@@ -18,6 +18,15 @@ class Foregrounds:
         "350": 8.247628e8,
         "none": T_CMB
     }
+    freq_to_freqpath = {
+        30: "030",
+        90: "090",
+        148: "148",
+        219: "219",
+        277: "277",
+        350: "350",
+        None: "none"
+    }
 
     #############################################
     
@@ -39,21 +48,47 @@ class Foregrounds:
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
 
+        try:
+            os.makedirs(output_path, exist_ok=True)
+            self.logger.info(f"Made directory: {output_path}")
+        except FileExistsError:
+            self.logger.info(f"Directory already exists: {output_path}")
+
         return None
 
     ############################################# Diffuse Components
 
-    def load_fullsky(self, frequency, data_path, fullsky_res, fullsky_output_path,
+    def load_fullsky(self, frequency, data_path, fullsky_output_path,
                      scaling_factor = 1.0, deconvolve_pixel_window = True):    
+        """
+        Loads and processess full-sky input at a given frequency.
+    
+        Parameters
+        ----------
+        frequency : str
+            Frequency label used in pathing (e.g. '090').
+        data_path : str
+            Path to the input full-sky data.
+        fullsky_output_path : str
+            Path to the output processed full-sky data.
+        scaling_factor : float, optional
+            Optional multiplicative factor applied to the input map. Default is 1.0.
+        deconvolve_pixel_window : bool, optional
+            If True, pixel window deconvolution is applied on full-sky data. Default is True
+    
+        Returns
+        -------
+        fullsky_map : so_map
+            Final processed full-sky map in units of micro-K.
+        """
         
         conversion_factor = self.freq_to_conversion[frequency]
-        self.logger.info(f"Using data from {data_path} at res={fullsky_res}")
+        self.logger.info(f"Using data from {data_path}")
         try:
             os.makedirs(fullsky_output_path, exist_ok=True)
             self.logger.info(f"Made directory: {fullsky_output_path}")
         except FileExistsError:
             self.logger.info(f"Directory already exists: {fullsky_output_path}")
-        
     
         nside = hp.get_nside(hp.read_map(data_path))
         fullsky_map = so_map.healpix_template(1, nside)
@@ -75,6 +110,24 @@ class Foregrounds:
         return fullsky_map
 
     def extract_largerPatch_from_fullsky(self, fullsky_map, fullsky_res, patch_output_path):
+        """
+        Cuts out patch of sky from full-sky data
+    
+        Parameters
+        ----------
+        fullsky_map : so_map
+            Final processed full-sky map in units of micro-K without pixel window convolution.
+        fullsky_res : float
+            Resolution of full-sky map in units of arcmin.
+        patch_output_path : str
+            Path to the output processed patch of sky.
+    
+        Returns
+        -------
+        apodized_patch : so_map
+            Final patch of sky at resolution fullsky_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width.
+        """
+        
         try:
             os.makedirs(patch_output_path, exist_ok=True)
             self.logger.info(f"Made directory: {patch_output_path}")
@@ -105,6 +158,24 @@ class Foregrounds:
         return apodized_patch
 
     def upsample_largerPatch(self, apodized_patch_old, fullsky_res, patch_output_path):
+        """
+        Cuts out patch of sky from full-sky data
+    
+        Parameters
+        ----------
+        apodized_patch_old : so_map
+            Patch of sky at resolution fullsky_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width.
+        fullsky_res : float
+            Resolution of full-sky map in units of arcmin.
+        patch_output_path : str
+            Path to the output processed patch of sky.
+    
+        Returns
+        -------
+        so_patch_larger_upsampled : so_map
+            Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width.
+        """
+        
         try:
             os.makedirs(patch_output_path, exist_ok=True)
             self.logger.info(f"Made directory: {patch_output_path}")
@@ -132,26 +203,23 @@ class Foregrounds:
 
         return so_patch_larger_upsampled
 
-    def convolve_largerPatch_with_beam(self, patch, FWHM, patch_output_path):
-        if FWHM == 0:
-            self.logger.info(f"FWHM = 0, no convolution")
-            return patch
-
-        try:
-            os.makedirs(patch_output_path, exist_ok=True)
-            self.logger.info(f"Made directory: {patch_output_path}")
-        except FileExistsError:
-            self.logger.info(f"Directory already exists: {patch_output_path}")
-
-        FWHM_converted = FWHM/60 * np.pi/180 # radians
-        sigma = FWHM_converted/np.sqrt(8*np.log(2))
-        beamConvolved_patch = so_map.from_enmap(enmap.smooth_gauss(enmap.enmap(patch.data, patch.data.wcs), sigma))
-        beamConvolved_patch.write_map(patch_output_path + "beamConvolved_patch")
-        self.logger.info(f"FWHM = {FWHM_converted}, convolved")
-
-        return beamConvolved_patch
-
     def convolve_largerPatch_with_pw(self, patch, patch_output_path):
+        """
+        Convolves apodized patch of sky with pixel window function.
+    
+        Parameters
+        ----------
+        patch : so_map
+            Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width.
+        patch_output_path : str
+            Path to the output processed patch of sky.
+    
+        Returns
+        -------
+        pwConvolved_patch : so_map
+            Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width, convolved with pixel window function.
+        """
+        
         try:
             os.makedirs(patch_output_path, exist_ok=True)
             self.logger.info(f"Made directory: {patch_output_path}")
@@ -172,6 +240,22 @@ class Foregrounds:
         return pwConvolved_patch
 
     def get_innerPatch(self, patch, patch_output_path):
+        """
+        Cuts out inner patch of desired width from a larger patch of sky.
+    
+        Parameters
+        ----------
+        patch : so_map
+            Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width, convolved with pixel window function.
+        patch_output_path : str
+            Path to the output processed patch of sky.
+    
+        Returns
+        -------
+        inner_patch : so_map
+            Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width self.final_width, convolved with pixel window function.
+        """
+        
         try:
             os.makedirs(patch_output_path, exist_ok=True)
             self.logger.info(f"Made directory: {patch_output_path}")
@@ -191,38 +275,62 @@ class Foregrounds:
 
         return inner_patch
 
-    def generate_diffuse_foreground(self, component, frequency, data_path, do_fullsky_part = True):
+    def generate_diffuse_foreground(self, component, frequency, do_fullsky_part = False, data_path = None):
+        """
+        Generates a patch of a diffuse foreground (e.g. tSZ, kappa) at a given frequency.
+    
+        Parameters
+        ----------
+        component : str
+            Foreground type ('tSZ', 'kappa', or 'kSZ').
+        frequency : int or None
+            Frequency of desired foreground (30, 90, 148, 219, 277, 350) or None for lensing convergence.
+        do_fullsky_part : bool, optional
+            If True, loads and processes full-sky input. Default is False.
+        data_path : str or None
+            Path to the input full-sky data. Can be None if do_fullsky_part is False. Default is None
+    
+        Returns
+        -------
+        innerPatch : so_map
+            Final processed diffuse foreground patch at resolution of self.new_res.
+        """
 
+        # Specific foreground considerations
         deconvolve_pixel_window = True
         nside = 8192
         scaling_factor = 1.0
-        
         if component == 'tSZ':
             scaling_factor = 0.75        
         if component == 'kappa':
             nside = 4096
             deconvolve_pixel_window = False
+        frequency = self.freq_to_freqpath[frequency]
             
         fullsky_res = hp.nside2resol(nside, arcmin=True)
         old_res_path = self.output_path + component + "/" + frequency + "/" + str(fullsky_res) + "/"
         new_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
         
         if do_fullsky_part:
-            self.load_fullsky(frequency, data_path, fullsky_res, fullsky_output_path = old_res_path,
+            self.load_fullsky(frequency, data_path, fullsky_output_path = old_res_path,
                               scaling_factor = scaling_factor, deconvolve_pixel_window = deconvolve_pixel_window) 
 
-        fullsky_map = so_map.healpix_template(1, nside)
-        if deconvolve_pixel_window:
-            fullsky_map.data[:] = hp.read_map(old_res_path + "fullsky_deconvolved")
+            fullsky_map = so_map.healpix_template(1, nside)
+            if deconvolve_pixel_window:
+                fullsky_map.data[:] = hp.read_map(old_res_path + "fullsky_deconvolved")
+            else:
+                fullsky_map.data[:] = hp.read_map(old_res_path + "fullsky")
+                
+            largerPatch = self.extract_largerPatch_from_fullsky(fullsky_map, fullsky_res, patch_output_path = old_res_path)
         else:
-            fullsky_map.data[:] = hp.read_map(old_res_path + "fullsky")
-        largerPatch = self.extract_largerPatch_from_fullsky(fullsky_map, fullsky_res, patch_output_path = old_res_path)
-        largerPatch_UHR = self.upsample_largerPatch(largerPatch, fullsky_res, patch_output_path = new_res_path)
+            largerPatch = so_map.read_map(old_res_path + "apodized_patch")
+        
+        largerPatch_HD = self.upsample_largerPatch(largerPatch, fullsky_res, patch_output_path = new_res_path)
         if component != 'kappa':
-            largerPatch_UHR_pwConvolved = self.convolve_largerPatch_with_pw(largerPatch_UHR, patch_output_path = new_res_path)
+            largerPatch_HD_pwConvolved = self.convolve_largerPatch_with_pw(largerPatch_HD, patch_output_path = new_res_path)
         else:
-            largerPatch_UHR_pwConvolved = largerPatch_UHR.copy()
-        innerPatch = self.get_innerPatch(largerPatch_UHR_pwConvolved, patch_output_path = new_res_path)
+            largerPatch_HD_pwConvolved = largerPatch_HD.copy()
+        innerPatch = self.get_innerPatch(largerPatch_HD_pwConvolved, patch_output_path = new_res_path)
 
         return innerPatch
 
@@ -272,6 +380,8 @@ class Foregrounds:
                 full_df = pd.concat([full_df,input_df],axis=0)
             full_df.to_csv(output_catalog_name)
         elif component == 'radio':
+            data_path = data_path + "radio.cat"
+            
             with open(data_path, 'r') as file:
                 lines = file.readlines()
                 
@@ -357,7 +467,28 @@ class Foregrounds:
         
         return apodized_patch
 
-    def generate_discrete_foreground(self, component, frequency, data_path, make_catalog = True):
+    def generate_discrete_foreground(self, component, frequency, make_catalog = False, data_path = None):
+        """
+        Generates a patch of a discrete foregrounds (e.g. radio, CIB) at a given frequency.
+    
+        Parameters
+        ----------
+        component : str
+            Foreground type ('tSZ', 'kappa', or 'kSZ').
+        frequency : int or None
+            Frequency of desired foreground (30, 90, 148, 219, 277, 350) or None for lensing convergence.
+        make_catalog : bool, optional
+            If True, isolates the discrete foregrounds in the desired patch of sky.
+        data_path : str or None
+            Path to the folder where full-sky source catalogs are located. Can be None if make_catalog is False. Default is None
+    
+        Returns
+        -------
+        innerPatch : so_map
+            Final processed diffuse foreground patch at resolution of self.new_res.
+        """
+        
+        frequency = self.freq_to_freqpath[frequency]
         new_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
 
         scaling_factor = 1.0
@@ -370,18 +501,37 @@ class Foregrounds:
             self.logger.info(f"Not cutting down the catalog, as it's already been done")
         catalog = pd.read_csv(self.output_path + component + f"/sources_in_{self.final_width + 2*self.apod_width}x{self.final_width + 2*self.apod_width}_{self.ra},{self.dec}.csv")
 
-        largerPatch_UHR = self.generate_largerPatch_from_catalog(catalog, frequency, scaling_factor, patch_output_path = new_res_path)
-        largerPatch_UHR_pwConvolved = self.convolve_largerPatch_with_pw(largerPatch_UHR, patch_output_path = new_res_path)
-        innerPatch = self.get_innerPatch(largerPatch_UHR_pwConvolved, patch_output_path = new_res_path)
+        largerPatch_HD = self.generate_largerPatch_from_catalog(catalog, frequency, scaling_factor, patch_output_path = new_res_path)
+        largerPatch_HD_pwConvolved = self.convolve_largerPatch_with_pw(largerPatch_HD, patch_output_path = new_res_path)
+        innerPatch = self.get_innerPatch(largerPatch_HD_pwConvolved, patch_output_path = new_res_path)
 
         return innerPatch
 
     def generate_discrete_foreground_from_custom_catalog(self, component, frequency, catalog):
+        """
+        Generates a patch of a discrete foregrounds (e.g. radio, CIB) at a given frequency from a custom catalog.
+    
+        Parameters
+        ----------
+        component : str
+            Foreground type ('tSZ', 'kappa', or 'kSZ').
+        frequency : int or None
+            Frequency of desired foreground (30, 90, 148, 219, 277, 350) or None for lensing convergence.
+        catalog : 
+            Input catalog of point sources.
+    
+        Returns
+        -------
+        innerPatch : so_map
+            Final processed diffuse foreground patch at resolution of self.new_res.
+        """
+
+        frequency = self.freq_to_freqpath[frequency]
         new_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
 
-        largerPatch_UHR = self.generate_largerPatch_from_catalog(catalog, frequency, scaling_factor = 1.0, patch_output_path = new_res_path)
-        largerPatch_UHR_pwConvolved = self.convolve_largerPatch_with_pw(largerPatch_UHR, patch_output_path = new_res_path)
-        innerPatch = self.get_innerPatch(largerPatch_UHR_pwConvolved, patch_output_path = new_res_path)
+        largerPatch_HD = self.generate_largerPatch_from_catalog(catalog, frequency, scaling_factor = 1.0, patch_output_path = new_res_path)
+        largerPatch_HD_pwConvolved = self.convolve_largerPatch_with_pw(largerPatch_HD, patch_output_path = new_res_path)
+        innerPatch = self.get_innerPatch(largerPatch_HD_pwConvolved, patch_output_path = new_res_path)
 
         return innerPatch
 
@@ -444,6 +594,38 @@ class Foregrounds:
                                       template_minimization_index, patch_minimization_index, \
                                       template_ell0_index=3101, patch_ell0_index=15,
                                       seed = 3):
+        """
+        Generates the alms for the small-scale extension of particular patch of sky.
+    
+        Parameters
+        ----------
+        output_path : str
+            Path to the output saved files for the small-scale extension Fourier components.
+        template_cls : ndarray
+            Input cls for template theory we want to match.
+        template_ells : ndarray
+            Input ells for template theory we want to match.
+        patch_cls : ndarray
+            Input cls for patch theory we want to match.
+        patch_ells : ndarray
+            Input ells for patch theory we want to match.
+        template_minimization_index : int
+            The index in template_ells that matches the ell value we want to minimize the distance to
+        patch_minimization_index : int
+            The index in patch_ells that matches the ell value we want to minimize the distance to
+        template_ell0_index : int
+            The index in template_ells that matches ell_0. Default is 3101.
+        patch_ell0_index : int
+            The index in patch_ells that matches ell_0. Default is 15, which corresponds to ell = 3100 assuming delta_ell = 200.
+        seed : int
+            The seed used to generate the alms
+    
+        Returns
+        -------
+        alms_theory : ndarray
+            Final alms for small-scale extension fit to the two ell values provided.
+        """
+        
         try:
             os.makedirs(output_path, exist_ok=True)
             self.logger.info(f"Made directory: {output_path}")
@@ -472,16 +654,32 @@ class Foregrounds:
         self.logger.info(f"A = {A_val:.10e}")
     
         theory_cls = ((template_ells/template_ell0_index)**n_val) * A_val * template_cls
-        np.save(output_path + "cls_stitchingTheory",theory_cls)
-        np.save(output_path + "ells_stitchingTheory",template_ells)
+        hp.write_cl(output_path + "cls_stitchingTheory.fits",theory_cls)
+        hp.write_cl(output_path + "ells_stitchingTheory.fits",template_ells)
 
         self.logger.info(f"Now generating alms from theory")
         alms_theory = curvedsky.rand_alm(theory_cls,lmax=self.l_max,seed=seed)
         np.save(output_path + "alms_stitchingTheory",alms_theory)
 
-        return theory_cls, template_ells, alms_theory
+        return alms_theory
 
     def get_S10_for_stitching(self, output_path, upsampled_patch):
+        """
+        Generates the alms for the S10 patch of sky.
+    
+        Parameters
+        ----------
+        output_path : str
+            Path to the output saved files for the patch Fourier components.
+        upsampled_patch : enmap
+            Input foreground patch of sky
+    
+        Returns
+        -------
+        alms_for_stitching_resized : ndarray
+            Final alms for original patch resized to match desired output.
+        """
+        
         try:
             os.makedirs(output_path, exist_ok=True)
             self.logger.info(f"Made directory: {output_path}")
@@ -508,6 +706,26 @@ class Foregrounds:
         return alms_for_stitching_resized
 
     def stitch_alms(self, alms_theory, alms_S10, output_path, l_cutoff):
+        """
+        Combines two sets of alms to generate the desired patch of sky with Fourier components from one until some ell, at which point the Fourier components are from the other set.
+    
+        Parameters
+        ----------
+        alms_theory : ndarray
+            The Fourier components used at high-ell.
+        alms_S10 : ndarray
+            The Fourier components used at low-ell.
+        output_path : str
+            Path to save real-space patch coming from both sets of Fourier components.
+        l_cutoff : int
+            Value of ell beyond which alms_S10 is replaced by values from alms_theory.
+    
+        Returns
+        -------
+        patch_map_so : so_map
+            Real-space patch coming from both sets of Fourier components.
+        """
+        
         try:
             os.makedirs(output_path, exist_ok=True)
             self.logger.info(f"Made directory: {output_path}")
@@ -539,6 +757,22 @@ class Foregrounds:
         return (x / TCMB) * self.get_flux2temp_unit_conversion(freq) * 1e3
     
     def make_catalog_from_sims(self, sims, component):
+        """
+        Extracts sources from foreground patch with point sources located at center of pixels
+    
+        Parameters
+        ----------
+        sims : dict
+            Dictionary of enmaps for each frequency
+        component : str
+            Foreground component
+    
+        Returns
+        -------
+        catalog : pd.df
+            Source catalog
+        """
+        
         try:
             os.makedirs(self.output_path + component, exist_ok=True)
             self.logger.info(f"Made directory: {self.output_path + component}")
@@ -570,7 +804,31 @@ class Foregrounds:
         
         return catalog
 
-    def add_gauss_scatter_to_coords(self, ras, decs, shape, wcs, seed=0, sigma_pix_frac=0.2):
+    def add_gauss_scatter_to_coords(self, ras, decs, shape, wcs, sigma_pix_frac=0.2, seed=0):
+        """
+        Adds scatter to the location of point sources
+    
+        Parameters
+        ----------
+        ras : ndarray
+            RA values of point sources in catalog
+        decs : ndarray
+            DEC values of point sources in catalog
+        shape : 
+            shape for enmap of input resolution and map geometry
+        wcs : 
+            wcs for enmap of input resolution and map geometry
+        sigma_pix_frac : float
+            Sigma pixel fraction of normal distribution used to add scatter to point sources
+        seed : int
+            The seed used to perform the scatter
+    
+        Returns
+        -------
+        catalog : pd.df
+            Source catalog
+        """
+        
         # get avg width and height of each pixel
         avg_pixel_width, avg_pixel_height = np.rad2deg(enmap.pixshape(shape, wcs))
         # add some scatter around ra/dec within width/height of pixel:

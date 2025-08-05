@@ -77,7 +77,20 @@ class Spectra:
             window = window.data
         return window
     
-    def make_binning_files(self, delta_ell, spin = 0, binning_output_path = None):
+    def make_binning_files(self, binning_output_path, delta_ell = 200, spin0and2 = False):
+        """
+        Generates mode decoupling matrix and binning files for a chosen patch and resolution.
+    
+        Parameters
+        ----------
+        binning_output_path : str
+            Path to save binning files to
+        delta_ell : int
+            Desired bin width in final power spectra. Default 200
+        spin0and2 : bool, optional
+            If True, makes binning files for spin0and2 patch of sky (i.e. CMB T,Q,U maps). Default False
+        """
+        
         try:
             os.makedirs(binning_output_path, exist_ok=True)
             self.logger.info(f"Made directory: {binning_output_path}")
@@ -101,20 +114,58 @@ class Spectra:
         pspy_utils.create_binning_file(bin_size=delta_ell, n_bins=nbins, file_name=binning_output_path + binning_file)
     
         self.logger.info(f"Doing mode decoupling, without beam")
-        if spin == 0:
-            mbb_inv, Bbl = so_mcm.mcm_and_bbl_spin0(window.copy(), binning_output_path + binning_file, niter=0, lmax=self.l_max, type="Cl")
-            self.logger.info(f"Saving mode decoupling")
-            np.save(binning_output_path + "mbb_inv_"+binning_file+"_spin0", mbb_inv)
-            np.save(binning_output_path + "Bbl_"+binning_file+"_spin0", Bbl)
-        elif spin == 2:
-            mbb_inv, Bbl = so_mcm.mcm_and_bbl_spin0and2((window,window), binning_output_path + binning_file, niter=0, lmax=self.l_max, type="Cl")
+        if spin0and2:
+            mbb_inv, Bbl = so_mcm.mcm_and_bbl_spin0and2((window,window), binning_output_path + binning_file, niter=0, lmax=self.l_max, type="Dl")
             self.logger.info(f"Saving mode decoupling")
             np.save(binning_output_path + "mbb_inv_"+binning_file+"_spin0and2", mbb_inv)
             np.save(binning_output_path + "Bbl_"+binning_file+"_spin0and2", Bbl)
+        else:
+            mbb_inv, Bbl = so_mcm.mcm_and_bbl_spin0(window.copy(), binning_output_path + binning_file, niter=0, lmax=self.l_max, type="Dl")
+            self.logger.info(f"Saving mode decoupling")
+            np.save(binning_output_path + "mbb_inv_"+binning_file+"_spin0", mbb_inv)
+            np.save(binning_output_path + "Bbl_"+binning_file+"_spin0", Bbl)
         
-        return mbb_inv, Bbl
+        return None
 
-    def get_foreground_power(self, patch, mbb_inv, binning_file, deconvolve_pw = True, output_path = None):
+    def get_binning_files(self, path, delta_ell = 200, spin0and2 = False):
+        """
+        Returns mode decoupling matrix and binning files for use in power spectra.
+    
+        Parameters
+        ----------
+        path : str
+            Path with binning files
+        delta_ell : int
+            Desired bin width in final power spectra. Default 200
+        spin0and2 : bool, optional
+            If True, finds binning files for spin0and2 patch of sky (i.e. CMB T,Q,U maps). Default False
+        """
+        if spin0and2:
+            mbb_inv = np.load(f"{path}mbb_inv_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2.npy", allow_pickle=True)
+        else:
+            mbb_inv = np.load(f"{path}mbb_inv_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0.npy", allow_pickle=True)
+        binning_file = f"{path}lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}"
+
+        return mbb_inv, binning_file
+
+    def get_foreground_power(self, patch, mbb_inv, binning_file, output_path, deconvolve_pw = True):
+        """
+        Saves power spectrum of foreground (spin0) patch.
+    
+        Parameters
+        ----------
+        patch : enmap
+            Foreground patch
+        binning_output_path : str
+            Path to binning file
+        mbb_inv : numpy.ndarray
+            Mode decoupling matrix as ndarray
+        output_path : str
+            Path to save spectrum to
+        deconvolve_pw : bool
+            If True, deconvolves foreground patch before taking power. Default True
+        """
+        
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
         window = self.make_apod_window(shape, wcs, self.apod_width, map_type='pixell')
         window_ones = self.enmap2pspy(enmap.ones(shape, wcs))
@@ -132,11 +183,11 @@ class Spectra:
         
         self.logger.info(f"Get spectra")
         ell_patch, cl_patch = so_spectra.get_spectra(alms)
-        patch_ells, patch_cls = so_spectra.bin_spectra(ell_patch, cl_patch, binning_file, self.l_max, type="Cl", mbb_inv=mbb_inv)
-        hp.write_cl(output_path + "cls.fits", patch_cls, overwrite=True)
+        patch_ells, patch_dls = so_spectra.bin_spectra(ell_patch, cl_patch, binning_file, self.l_max, type="Dl", mbb_inv=mbb_inv)
+        hp.write_cl(output_path + "dls.fits", patch_dls, overwrite=True)
         hp.write_cl(output_path + "ells.fits", patch_ells, overwrite=True)
         
-        return patch_cls, patch_ells
+        return None
 
     def get_CMB_power(self, patch_T, patch_Q, patch_U, mbb_inv, binning_file, output_path, deconvolve_pw = False,
                       spectra = ["TT", "TE", "TB", "ET", "BT", "EE", "EB", "BE", "BB"]):
@@ -167,11 +218,11 @@ class Spectra:
         self.logger.info(f"Get spectra")
         #alms = np.load(output_path + "alms.npy")
         ell, ps = so_spectra.get_spectra(alms, alms, spectra=spectra)
-        ellb, Cb = so_spectra.bin_spectra(
-            ell, ps, binning_file, self.l_max, type="Cl", mbb_inv=mbb_inv[()], spectra=spectra
+        ellb, Db = so_spectra.bin_spectra(
+            ell, ps, binning_file, self.l_max, type="Dl", mbb_inv=mbb_inv[()], spectra=spectra
         )
 
-        np.save(output_path + "cls",Cb)
-        np.save(output_path + "ell",ellb)
+        hp.write_cl(output_path + "dls.fits",Db)
+        hp.write_cl(output_path + "ell.fits",ellb)
 
         return Cb, ellb

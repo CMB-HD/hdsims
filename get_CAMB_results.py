@@ -6,12 +6,13 @@ ini_file = 'raw_data/bode_almost_wmap5_params_highKeta.ini'
 pars = camb.read_ini(ini_file)
 
 # high-accuracy settings
+pars.set_matter_power(kmax=10, k_per_logint=130)
 pars.set_for_lmax (40000, \
     lens_potential_accuracy =30 , \
     lens_margin =2050)
 pars.set_accuracy ( AccuracyBoost =1.1 , \
     lSampleBoost =3.0 , lAccuracyBoost =3.0 , \
-    DoLateRadTruncation = False )
+    DoLateRadTruncation = False, min_l_logl_sampling=10000 )
 pars.NonLinear = camb.model.NonLinear_both
 pars.NonLinearModel.set_params("mead2016")
 

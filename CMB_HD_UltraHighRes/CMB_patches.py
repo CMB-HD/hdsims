@@ -154,7 +154,7 @@ class CMB:
             self.logger.info(f"Computing CMB-{type_unlensed} alms")
             unlensed_map = enmap.read_map(unlensed_map_path)[type_unlensed]
             alms_unlensed = sph_tools.get_alms(self.enmap2pspy(unlensed_map), window_ones, niter=0, lmax=lmax_raw)
-            np.save(f"{unlensed_output}alms_unlensed_{type_unlensed}", alms_unlensed)
+            enmap.write_map(f"{unlensed_output}alms_unlensed_{type_unlensed}", alms_unlensed)
 
         self.logger.info(f"Computing Kappa alms")
         kappa_map = enmap.read_map(kappa_map_path)
@@ -185,6 +185,6 @@ class CMB:
             self.logger.info(f"Did Lensing")
             lensed_map = enmap.apply_window(lensed_map)
             self.logger.info(f"Convolved")
-            np.save(f"{lensing_output_path}lensed_{type_unlensed}output",lensed_map)
+            enmap.write_map(f"{lensing_output_path}lensed_{type_unlensed}output",lensed_map)
         
         return None
