@@ -365,8 +365,8 @@ class Foregrounds:
                 return initial_patch.data.shape[0]-1
             return pixel_dec
 
-        flux_feature = str(int(frequency)) + 'GHz_flux'
-        conversion_factor = self.freq_to_conversion[frequency]
+        flux_feature = str(frequency) + 'GHz_flux'
+        conversion_factor = self.freq_to_conversion[self.freq_to_freqpath[frequency]]
 
         self.logger.info(f"Adding sources")
         for i in (np.arange(np.shape(catalog)[0])):      
@@ -381,16 +381,8 @@ class Foregrounds:
 
         initial_patch.data[:] *= scaling_factor
         initial_patch.data[:] /= pixsizemap.data[:]
-
-        self.logger.info(f"Apodizing S10 patch (apodized_patch)")
-        apodized_patch = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, self.new_res)
-        binary_car_larger_highRes = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, self.new_res)
-        binary_car_larger_highRes.data[:] = 0
-        binary_car_larger_highRes.data[1:-1, 1:-1] = 1
-        so_taper_larger_highRes = so_window.create_apodization(binary_car_larger_highRes, apo_type="C1", apo_radius_degree=self.apod_width)
-        apodized_patch.data[:] = initial_patch.data[:] * so_taper_larger_highRes.data[:]
         
-        return apodized_patch
+        return initial_patch
 
     def generate_discrete_foreground(self, frequency, catalog, scaling_factor = 1.0):
         """
@@ -409,8 +401,22 @@ class Foregrounds:
             Final processed diffuse foreground patch at resolution of self.new_res.
         """
 
-        largerPatch_HD = self.place_sources_in_largerPatch(catalog, self.freq_to_freqpath[frequency], scaling_factor)
-        largerPatch_HD_pwConvolved = self.convolve_largerPatch_with_pw(largerPatch_HD)
+        initial_patch_HD = self.place_sources_in_largerPatch(catalog, frequency, scaling_factor)
+
+        width = self.final_width + 2*self.apod_width
+        ra_min = self.ra - width/2
+        ra_max = self.ra + width/2
+        dec_min = self.dec - width/2
+        dec_max = self.dec + width/2
+        self.logger.info(f"Apodizing S10 patch (apodized_patch)")
+        apodized_patch = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, self.new_res)
+        binary_car_larger_highRes = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, self.new_res)
+        binary_car_larger_highRes.data[:] = 0
+        binary_car_larger_highRes.data[1:-1, 1:-1] = 1
+        so_taper_larger_highRes = so_window.create_apodization(binary_car_larger_highRes, apo_type="C1", apo_radius_degree=self.apod_width)
+        apodized_patch.data[:] = initial_patch.data[:] * so_taper_larger_highRes.data[:]
+        
+        largerPatch_HD_pwConvolved = self.convolve_largerPatch_with_pw(apodized_patch)
         innerPatch = self.get_innerPatch(largerPatch_HD_pwConvolved)
 
         return innerPatch
@@ -597,7 +603,7 @@ class Foregrounds:
         patch_map_so = self.enmap2pspy(patch_map)
         
         return patch_map_so
-'''
+
     ############################################# CIB
 
     def get_flux2temp_unit_conversion(self, freq):
@@ -608,7 +614,7 @@ class Foregrounds:
     def uK_to_mJy_per_str(self, x, freq, TCMB=2.7255e6):
         return (x / TCMB) * self.get_flux2temp_unit_conversion(freq) * 1e3
     
-    def make_catalog_from_sims(self, sims, component):
+    def make_catalog_from_sims(self, sims, sigma_pix_frac=0.2, seed=0):
         """
         Extracts sources from foreground patch with point sources located at center of pixels
     
@@ -625,14 +631,7 @@ class Foregrounds:
             Source catalog
         """
         
-        try:
-            os.makedirs(self.output_path + component, exist_ok=True)
-            self.logger.info(f"Made directory: {self.output_path + component}")
-        except FileExistsError:
-            self.logger.info(f"Directory already exists: {self.output_path + component}")
-        
         width = self.final_width + 2*self.apod_width
-        output_catalog_name = self.output_path + component + f"/sources_in_{width}x{width}_{self.ra},{self.dec}.csv"
         
         freqs = sorted(list(sims.keys()))
         max_freq = np.max(freqs)
@@ -652,11 +651,11 @@ class Foregrounds:
             catalog_dict[f'{freq}GHz_flux'] = flux_sims[freq][nonzero_mask]
         catalog = pd.DataFrame(catalog_dict)
 
-        catalog.to_csv(output_catalog_name)
+        catalog['ra_deg'], catalog['dec_deg'] = self.add_gauss_scatter_to_coords(catalog['ra_deg'].values, catalog['dec_deg'].values, shape, wcs, sigma_pix_frac, seed)
         
         return catalog
 
-    def add_gauss_scatter_to_coords(self, ras, decs, shape, wcs, sigma_pix_frac=0.2, seed=0):
+    def add_gauss_scatter_to_coords(self, ras, decs, shape, wcs, sigma_pix_frac, seed=):
         """
         Adds scatter to the location of point sources
     
@@ -691,4 +690,3 @@ class Foregrounds:
         random_ras = ras + ra_scatter
         random_decs = decs + dec_scatter
         return random_ras, random_decs
-'''
