@@ -208,17 +208,12 @@ class Foregrounds:
             Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width self.final_width, convolved with pixel window function.
         """
         
-        width = self.final_width
-        ra_min = self.ra - width/2
-        ra_max = self.ra + width/2
-        dec_min = self.dec - width/2
-        dec_max = self.dec + width/2
-        
-        inner_patch = so_map.get_submap_car(patch, 
-                                      so_map.bounding_box_from_map(so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, self.new_res)))    
-        self.logger.info(f"Cut inner patch down")
 
-        return inner_patch
+        shape, wcs = self.get_shape_wcs(self.new_res, self.ra, self.dec, self.final_width, height=self.final_width)
+        inner_patch = enmap.project(patch.data, shape, wcs)
+        self.logger.info(f"Cut inner patch down")
+        
+        return self.enmap2pspy(inner_patch)
 
     def generate_diffuse_foreground(self, component, frequency, fullsky_deconvolved_path = None, S10_largeApodized_path = None):
         """
@@ -242,15 +237,9 @@ class Foregrounds:
         """
 
         # Specific foreground considerations
-        deconvolve_pixel_window = True
         nside = 8192
-        scaling_factor = 1.0
-        if component == 'tSZ':
-            scaling_factor = 0.75        
         if component == 'kappa':
             nside = 4096
-            deconvolve_pixel_window = False
-        frequency = self.freq_to_freqpath[frequency]
             
         fullsky_res = hp.nside2resol(nside, arcmin=True)
 
@@ -401,7 +390,7 @@ class Foregrounds:
             Final processed diffuse foreground patch at resolution of self.new_res.
         """
 
-        initial_patch_HD = self.place_sources_in_largerPatch(catalog, frequency, scaling_factor)
+        initial_patch = self.place_sources_in_largerPatch(catalog, frequency, scaling_factor)
 
         width = self.final_width + 2*self.apod_width
         ra_min = self.ra - width/2
@@ -635,15 +624,15 @@ class Foregrounds:
         
         freqs = sorted(list(sims.keys()))
         max_freq = np.max(freqs)
-        shape = sims[max_freq].shape
-        wcs = sims[max_freq].wcs
+        shape = sims[max_freq].data.shape
+        wcs = sims[max_freq].data.wcs
         posmap = np.rad2deg(enmap.posmap(shape, wcs))
         ra_map = posmap[1]
         dec_map = posmap[0]
     
         flux_sims = {}
         for freq in freqs:
-            flux_sims[freq] = self.uK_to_mJy_per_str(sims[freq].copy(), freq) * sims[freq].pixsizemap()
+            flux_sims[freq] = self.uK_to_mJy_per_str(sims[freq].data.copy(), freq) * sims[freq].data.pixsizemap()
         nonzero_mask = np.greater(flux_sims[max_freq], 0)
     
         catalog_dict = {'ra_deg': ra_map[nonzero_mask], 'dec_deg': dec_map[nonzero_mask]}
@@ -655,7 +644,7 @@ class Foregrounds:
         
         return catalog
 
-    def add_gauss_scatter_to_coords(self, ras, decs, shape, wcs, sigma_pix_frac, seed=):
+    def add_gauss_scatter_to_coords(self, ras, decs, shape, wcs, sigma_pix_frac, seed):
         """
         Adds scatter to the location of point sources
     
