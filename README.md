@@ -31,4 +31,6 @@ in the `hdsims/S10_data` folder. Note that running this command will download da
 
 See the `example.ipynb` Jupyter notebook for a walkthrough example for small 2$^\circ$ by 2$^\circ$ sky patches. For larger patches, many of the functions cannot be run in a Jupyter notebook, so we also provide `.py` files which generate the results used in [!put the final paper here!](https://arxiv.org/).
 
-***JA: Needs updating***
+***JA: Usage section needs updating***
+
+***JA: Function docstrings need updating***

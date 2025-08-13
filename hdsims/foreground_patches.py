@@ -72,8 +72,8 @@ class Foregrounds:
         fullsky_map : so_map
             Final processed full-sky map in units of micro-K.
         """
-        
-        conversion_factor = self.freq_to_conversion[frequency]
+
+        conversion_factor = self.freq_to_conversion[self.freq_to_freqpath[frequency]]
         self.logger.info(f"Using data from {data_path}")
     
         nside = hp.get_nside(hp.read_map(data_path))
@@ -274,20 +274,14 @@ class Foregrounds:
         return innerPatch
 
     ############################################# Discrete Components
-    '''
+
     def make_catalog(self, data_path, component):
-        try:
-            os.makedirs(self.output_path + component, exist_ok=True)
-            self.logger.info(f"Made directory: {self.output_path + component}")
-        except FileExistsError:
-            self.logger.info(f"Directory already exists: {self.output_path + component}")
         
         width = self.final_width + 2*self.apod_width
         ra_min = self.ra - width/2
         ra_max = self.ra + width/2
         dec_min = self.dec - width/2
         dec_max = self.dec + width/2
-        output_catalog_name = self.output_path + component + f"/sources_in_{width}x{width}_{self.ra},{self.dec}.csv"
 
         if component == 'CIB':
             self.logger.info(f"Making CIB catalog in the patch")
@@ -317,7 +311,8 @@ class Foregrounds:
                 input_df = input_df.reset_index()
             
                 full_df = pd.concat([full_df,input_df],axis=0)
-            full_df.to_csv(output_catalog_name)
+            return full_df
+
         elif component == 'radio':
             data_path = data_path + "radio.cat"
             
@@ -341,17 +336,10 @@ class Foregrounds:
             input_df = input_df.drop(input_df[(input_df.ra_deg).astype(np.float64) < ra_min].index)
             input_df = input_df.drop(input_df[(input_df.ra_deg).astype(np.float64) > ra_max].index)
             input_df = input_df.reset_index()
-            
-            input_df.to_csv(output_catalog_name)
         
-        return None
+            return input_df
 
-    def generate_largerPatch_from_catalog(self, catalog, frequency, scaling_factor, patch_output_path):
-        try:
-            os.makedirs(patch_output_path, exist_ok=True)
-            self.logger.info(f"Made directory: {patch_output_path}")
-        except FileExistsError:
-            self.logger.info(f"Directory already exists: {patch_output_path}")
+    def place_sources_in_largerPatch(self, catalog, frequency, scaling_factor):
 
         width = self.final_width + 2*self.apod_width
         ra_min = self.ra - width/2
@@ -393,7 +381,6 @@ class Foregrounds:
 
         initial_patch.data[:] *= scaling_factor
         initial_patch.data[:] /= pixsizemap.data[:]
-        initial_patch.write_map(patch_output_path + "initial_patch")
 
         self.logger.info(f"Apodizing S10 patch (apodized_patch)")
         apodized_patch = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, self.new_res)
@@ -402,58 +389,15 @@ class Foregrounds:
         binary_car_larger_highRes.data[1:-1, 1:-1] = 1
         so_taper_larger_highRes = so_window.create_apodization(binary_car_larger_highRes, apo_type="C1", apo_radius_degree=self.apod_width)
         apodized_patch.data[:] = initial_patch.data[:] * so_taper_larger_highRes.data[:]
-        apodized_patch.write_map(patch_output_path + "apodized_patch")
         
         return apodized_patch
 
-    def generate_discrete_foreground(self, component, frequency, make_catalog = False, data_path = None):
-        """
-        Generates a patch of a discrete foregrounds (e.g. radio, CIB) at a given frequency.
-    
-        Parameters
-        ----------
-        component : str
-            Foreground type ('tSZ', 'kappa', or 'kSZ').
-        frequency : int or None
-            Frequency of desired foreground (30, 90, 148, 219, 277, 350) or None for lensing convergence.
-        make_catalog : bool, optional
-            If True, isolates the discrete foregrounds in the desired patch of sky.
-        data_path : str or None
-            Path to the folder where full-sky source catalogs are located. Can be None if make_catalog is False. Default is None
-    
-        Returns
-        -------
-        innerPatch : so_map
-            Final processed diffuse foreground patch at resolution of self.new_res.
-        """
-        
-        frequency = self.freq_to_freqpath[frequency]
-        new_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
-
-        scaling_factor = 1.0
-        if component == 'CIB':
-            scaling_factor = 0.75
-
-        if make_catalog:
-            self.make_catalog(data_path, component) 
-        else:
-            self.logger.info(f"Not cutting down the catalog, as it's already been done")
-        catalog = pd.read_csv(self.output_path + component + f"/sources_in_{self.final_width + 2*self.apod_width}x{self.final_width + 2*self.apod_width}_{self.ra},{self.dec}.csv")
-
-        largerPatch_HD = self.generate_largerPatch_from_catalog(catalog, frequency, scaling_factor, patch_output_path = new_res_path)
-        largerPatch_HD_pwConvolved = self.convolve_largerPatch_with_pw(largerPatch_HD, patch_output_path = new_res_path)
-        innerPatch = self.get_innerPatch(largerPatch_HD_pwConvolved, patch_output_path = new_res_path)
-
-        return innerPatch
-
-    def generate_discrete_foreground_from_custom_catalog(self, component, frequency, catalog):
+    def generate_discrete_foreground(self, frequency, catalog, scaling_factor = 1.0):
         """
         Generates a patch of a discrete foregrounds (e.g. radio, CIB) at a given frequency from a custom catalog.
     
         Parameters
         ----------
-        component : str
-            Foreground type ('tSZ', 'kappa', or 'kSZ').
         frequency : int or None
             Frequency of desired foreground (30, 90, 148, 219, 277, 350) or None for lensing convergence.
         catalog : 
@@ -465,15 +409,12 @@ class Foregrounds:
             Final processed diffuse foreground patch at resolution of self.new_res.
         """
 
-        frequency = self.freq_to_freqpath[frequency]
-        new_res_path = self.output_path + component + "/" + frequency + "/" + str(self.new_res) + "/"
-
-        largerPatch_HD = self.generate_largerPatch_from_catalog(catalog, frequency, scaling_factor = 1.0, patch_output_path = new_res_path)
-        largerPatch_HD_pwConvolved = self.convolve_largerPatch_with_pw(largerPatch_HD, patch_output_path = new_res_path)
-        innerPatch = self.get_innerPatch(largerPatch_HD_pwConvolved, patch_output_path = new_res_path)
+        largerPatch_HD = self.place_sources_in_largerPatch(catalog, self.freq_to_freqpath[frequency], scaling_factor)
+        largerPatch_HD_pwConvolved = self.convolve_largerPatch_with_pw(largerPatch_HD)
+        innerPatch = self.get_innerPatch(largerPatch_HD_pwConvolved)
 
         return innerPatch
-    '''
+
     ############################################# Stitching
 
     def enmap2pspy(self, imap):

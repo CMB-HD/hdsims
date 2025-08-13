@@ -47,7 +47,7 @@ for component in ['kappa','tSZ','kSZ']:
     fullsky_res = hp.nside2resol(nside, arcmin=True)
     
     # Load and deconvolve the fullsky maps
-    fullsky_map = foregrounds_S10.load_fullsky(foregrounds_S10.freq_to_freqpath[frequency], component_to_datapath[component],
+    fullsky_map = foregrounds_S10.load_fullsky(frequency, component_to_datapath[component],
                                   scaling_factor = scaling_factor, deconvolve_pixel_window = deconvolve_pixel_window)
     if frequency == None:
         fullsky_map.write_map(f"S10_data/deconvolved_fullsky/{component}_fullsky_deconvolved")
