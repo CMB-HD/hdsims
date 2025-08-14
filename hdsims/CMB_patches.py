@@ -82,23 +82,13 @@ class CMB:
             window = window.data
         return window
     
-    def make_cmb_signal_sim(self, fileps, width, seed=None):
-        cmb = so_map.car_template(3, self.ra-width/2, self.ra+width/2, self.dec-width/2, self.dec+width/2, self.res)
-        cl_file = os.path.join(fileps)
-        cmb.data = curvedsky.rand_map(cmb.data.shape, cmb.data.wcs, powspec.read_spectrum(cl_file)[: 3, : 3], seed = seed)
-        return cmb
-        
-    def make_unlensed_patch(self, theory_path, cmb_seed, unlensed_output):
-        try:
-            os.makedirs(unlensed_output, exist_ok=True)
-            self.logger.info(f"Made directory: {unlensed_output}")
-        except FileExistsError:
-            self.logger.info(f"Directory already exists: {unlensed_output}")
+    def make_unlensed_patch(self, theory_path, cmb_seed):
 
         self.logger.info(f"making unlensed CMB sim for {round(self.res,2)}' {round(self.final_width,2)} x {round(self.final_width,2)} deg patch with seed = {cmb_seed}")
-        cmb_sim = self.make_cmb_signal_sim(theory_path, width=self.final_width, seed=cmb_seed)
-
-        return cmb_sim.data
+        cmb = so_map.car_template(3, self.ra-self.final_width/2, self.ra+self.final_width/2, self.dec-self.final_width/2, self.dec+self.final_width/2, self.res)
+        cl_file = os.path.join(theory_path)
+        cmb.data = curvedsky.rand_map(cmb.data.shape, cmb.data.wcs, powspec.read_spectrum(cl_file)[: 3, : 3], seed = cmb_seed)
+        return cmb
 
     #############################################
 
@@ -107,16 +97,10 @@ class CMB:
     	oalm[~np.isfinite(oalm)] = 0
     	return oalm
 
-    def save_CMB_alms(self, cmb_unlensed, kappa_map_path, unlensed_output):
-        try:
-            os.makedirs(unlensed_output, exist_ok=True)
-            self.logger.info(f"Made directory: {unlensed_output}")
-        except FileExistsError:
-            self.logger.info(f"Directory already exists: {unlensed_output}")
+    def save_CMB_alms(self, cmb_unlensed, kappa_map):
             
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
         window_ones = self.enmap2pspy(enmap.ones(shape, wcs))
-        print(np.shape(window_ones.data))
         lmax_raw = min(self.l_max,int(window_ones.get_lmax_limit()))
 
         alms_unlensed = []
@@ -124,38 +108,26 @@ class CMB:
             self.logger.info(f"Computing CMB-{type_unlensed} alms")
             unlensed_map = cmb_unlensed.data[type_unlensed]
             alms_unlensed.append(sph_tools.get_alms(self.enmap2pspy(unlensed_map), window_ones, niter=0, lmax=lmax_raw))
-        '''
+
         self.logger.info(f"Computing Kappa alms")
-        kappa_map = enmap.read_map(kappa_map_path)
-        alms_kappa = sph_tools.get_alms(self.enmap2pspy(kappa_map), window_ones, niter=0, lmax=lmax_raw)
+        alms_kappa = sph_tools.get_alms(kappa_map, window_ones, niter=0, lmax=lmax_raw)
         self.logger.info(f"Computing Phi alms")
         alms_phi = self.kappa_to_phi(alms_kappa)
-        np.save(f"{unlensed_output}alms_phi_0.86", alms_phi)
-        '''
-        alms_phi = np.load('output/CMB_test1/lensed/alms_phi.npy')
         
         return alms_unlensed, alms_phi
 
-    def do_lensing(self, alms_unlensed, alms_phi, lensing_output_path):
-        try:
-            os.makedirs(lensing_output_path, exist_ok=True)
-            self.logger.info(f"Made directory: {lensing_output_path}")
-        except FileExistsError:
-            self.logger.info(f"Directory already exists: {lensing_output_path}")
-        
+    def do_lensing(self, cmb_unlensed, kappa_map):
+        alms_unlensed, alms_phi = self.save_CMB_alms(cmb_unlensed, kappa_map)
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
-        #alms_phi = np.load(f"{lensing_output_path}alms_phi.npy")
 
-        patch_unlensed = []
+        cmb = so_map.car_template(3, self.ra-self.final_width/2, self.ra+self.final_width/2, self.dec-self.final_width/2, self.dec+self.final_width/2, self.res)
         for type_unlensed in [0,1,2]:
             self.logger.info(f"Lensing CMB-{type_unlensed} map")
-            #alms_unlensed = np.load(f"{lensing_output_path}alms_unlensed_{type_unlensed}.npy")
             lensed_map = enmap.ones(shape, wcs)
             lensed_map.data *= lensing.lens_map_curved(shape, wcs, alms_phi, alms_unlensed[type_unlensed])[0]
             self.logger.info(f"Did Lensing")
             lensed_map = enmap.apply_window(lensed_map)
             self.logger.info(f"Convolved")
-            #enmap.write_map(f"{lensing_output_path}lensed_{type_unlensed}output",lensed_map)
-            patch_unlensed.append(lensed_map)
+            cmb.data[type_unlensed] = lensed_map.copy()
         
-        return patch_unlensed[0], patch_unlensed[1], patch_unlensed[2]
+        return cmb

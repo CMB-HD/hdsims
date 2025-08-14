@@ -215,16 +215,16 @@ class Spectra:
             patch_ells, patch_dls = so_spectra.bin_spectra(ell_patch, power_patch, binning_file, self.l_max, type="Dl", mbb_inv=mbb_inv)
             return patch_dls, patch_ells
 
-    def get_CMB_power(self, patch_T, patch_Q, patch_U, mbb_inv, binning_file, deconvolve_pw = False,
+    def get_CMB_power(self, cmb, mbb_inv, binning_file, deconvolve_pw = False,
                       spectra = ["TT", "TE", "TB", "ET", "BT", "EE", "EB", "BE", "BB"]):
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width)
         window = self.make_apod_window(shape, wcs, self.apod_width, map_type='pixell')
         window_ones = self.enmap2pspy(enmap.ones(shape, wcs))
         
         self.logger.info(f"Projecting")
-        imap_T = enmap.project( patch_T, shape, wcs) * window
-        imap_Q = enmap.project( patch_Q, shape, wcs) * window
-        imap_U = enmap.project( patch_U, shape, wcs) * window
+        imap_T = enmap.project( cmb.data[0], shape, wcs) * window
+        imap_Q = enmap.project( cmb.data[1], shape, wcs) * window
+        imap_U = enmap.project( cmb.data[2], shape, wcs) * window
 
         if deconvolve_pw:
             self.logger.info(f"Deconvolving")
