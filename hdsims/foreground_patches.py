@@ -466,7 +466,7 @@ class Foregrounds:
 
     def get_theory_for_stitching(self,template_cls, template_ells, patch_cls, patch_ells, \
                                       template_minimization_index, patch_minimization_index, \
-                                      template_ell0_index=3101, patch_ell0_index=15,
+                                      template_ell0_index=3102, patch_ell0_index=15,
                                       seed = 3):
         """
         Generates the alms for the small-scale extension of particular patch of sky.
@@ -488,7 +488,7 @@ class Foregrounds:
         patch_minimization_index : int
             The index in patch_ells that matches the ell value we want to minimize the distance to
         template_ell0_index : int
-            The index in template_ells that matches ell_0. Default is 3101.
+            The index in template_ells that matches ell_0. Default is 3102.
         patch_ell0_index : int
             The index in patch_ells that matches ell_0. Default is 15, which corresponds to ell = 3100 assuming delta_ell = 200.
         seed : int

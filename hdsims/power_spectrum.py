@@ -4,6 +4,8 @@ import numpy as np
 from pspy import so_map, so_window, so_mcm, pspy_utils, so_spectra, sph_tools
 from pixell import enmap, utils
 import healpy as hp
+import scipy.sparse as sp
+import scipy.sparse.linalg as spla
 
 class Spectra:
     def __init__(self, ra, dec, final_width, apod_width, 
@@ -24,6 +26,12 @@ class Spectra:
             self.logger.addHandler(handler)
 
         return None
+
+    def save_sparse_thresholded(self, filename, mat, tol=1e-12):
+        M = sp.csr_matrix(mat)
+        M.data[np.abs(M.data) < tol] = 0.0
+        M.eliminate_zeros() 
+        sp.save_npz(filename, M)
 
     def enmap2pspy(self, imap):
         if len(imap.shape) > 2:
@@ -77,7 +85,7 @@ class Spectra:
             window = window.data
         return window
     
-    def make_binning_files(self, binning_output_path, delta_ell = 200, spin0and2 = False, type_Cl = False):
+    def make_binning_files(self, binning_output_path, delta_ell = 200, spin0and2 = False, type_Cl = False, pre_existing_binning_edges = None, saveBblSparsely = True):
         """
         Generates mode decoupling matrix and binning files for a chosen patch and resolution.
     
@@ -111,9 +119,21 @@ class Spectra:
         window = so_window.create_apodization(window, apo_type="C1", apo_radius_degree=self.apod_width)
 
         self.logger.info(f"Making binning file")
-        binning_file = f"lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}"
         nbins = self.l_max / delta_ell
-        pspy_utils.create_binning_file(bin_size=delta_ell, n_bins=nbins, file_name=binning_output_path + binning_file)
+        if pre_existing_binning_edges == None:
+            binning_file = f"lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}"
+            pspy_utils.create_binning_file(bin_size=delta_ell, n_bins=nbins, file_name=binning_output_path + binning_file)
+        else:
+            with open(pre_existing_binning_edges, "r") as f:
+                edges = [float(line.strip()) for line in f]
+                
+            with open(binning_output_path + binning_file, "w") as f_out:
+                for i in range(len(edges)-1):
+                    left = edges[i]
+                    right = edges[i+1] - 1
+                    center = (left + right) / 2
+                    f_out.write(f"{left:.2f} {right:.2f} {center:.2f}\n")
+
     
         self.logger.info(f"Doing mode decoupling, without beam")
         if spin0and2:
@@ -121,27 +141,41 @@ class Spectra:
                 mbb_inv, Bbl = so_mcm.mcm_and_bbl_spin0and2((window,window), binning_output_path + binning_file, niter=0, lmax=self.l_max, type="Cl")
                 self.logger.info(f"Saving mode decoupling")
                 np.save(binning_output_path + "mbb_inv_"+binning_file+"_spin0and2_Cl", mbb_inv)
-                np.save(binning_output_path + "Bbl_"+binning_file+"_spin0and2_Cl", Bbl)
+                if saveBblSparsely:
+                    for comp in ['spin0xspin0','spin0xspin2','spin2xspin0','spin2xspin2']:
+                        self.save_sparse_thresholded(binning_output_path + f"Bbl{comp}_"+binning_file+"_spin0and2_Cl.npz", sp.csr_matrix(Bbl[comp]))
+                else:
+                    np.save(binning_output_path + "Bbl_"+binning_file+"_spin0and2_Cl", Bbl)
             else:
                 mbb_inv, Bbl = so_mcm.mcm_and_bbl_spin0and2((window,window), binning_output_path + binning_file, niter=0, lmax=self.l_max, type="Dl")
                 self.logger.info(f"Saving mode decoupling")
                 np.save(binning_output_path + "mbb_inv_"+binning_file+"_spin0and2", mbb_inv)
-                np.save(binning_output_path + "Bbl_"+binning_file+"_spin0and2", Bbl)
+                if saveBblSparsely:
+                    for comp in ['spin0xspin0','spin0xspin2','spin2xspin0','spin2xspin2']:
+                        self.save_sparse_thresholded(binning_output_path + f"Bbl{comp}_"+binning_file+"_spin0and2.npz", sp.csr_matrix(Bbl[comp]))
+                else:
+                    np.save(binning_output_path + "Bbl_"+binning_file+"_spin0and2", Bbl)
         else:
             if type_Cl:
                 mbb_inv, Bbl = so_mcm.mcm_and_bbl_spin0(window.copy(), binning_output_path + binning_file, niter=0, lmax=self.l_max, type="Cl")
                 self.logger.info(f"Saving mode decoupling")
                 np.save(binning_output_path + "mbb_inv_"+binning_file+"_spin0_Cl", mbb_inv)
-                np.save(binning_output_path + "Bbl_"+binning_file+"_spin0_Cl", Bbl)
+                if saveBblSparsely:
+                    self.save_sparse_thresholded(binning_output_path + f"Bbl_"+binning_file+"_spin0_Cl.npz", sp.csr_matrix(Bbl))
+                else:
+                    np.save(binning_output_path + "Bbl_"+binning_file+"_spin0_Cl", Bbl)
             else:
                 mbb_inv, Bbl = so_mcm.mcm_and_bbl_spin0(window.copy(), binning_output_path + binning_file, niter=0, lmax=self.l_max, type="Dl")
                 self.logger.info(f"Saving mode decoupling")
                 np.save(binning_output_path + "mbb_inv_"+binning_file+"_spin0", mbb_inv)
-                np.save(binning_output_path + "Bbl_"+binning_file+"_spin0", Bbl)
+                if saveBblSparsely:
+                    self.save_sparse_thresholded(binning_output_path + f"Bbl_"+binning_file+"_spin0.npz", sp.csr_matrix(Bbl))
+                else:
+                    np.save(binning_output_path + "Bbl_"+binning_file+"_spin0", Bbl)
         
         return None
 
-    def get_binning_files(self, path, delta_ell = 200, spin0and2 = False, type_Cl = False):
+    def get_binning_files(self, path, delta_ell = 200, spin0and2 = False, type_Cl = False, sparseBbl = True):
         """
         Returns mode decoupling matrix and binning files for use in power spectra.
     
@@ -159,17 +193,39 @@ class Spectra:
         if spin0and2:
             if type_Cl:
                 mbb_inv = np.load(f"{path}mbb_inv_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2_Cl.npy", allow_pickle=True)
-                Bbl = np.load(f"{path}Bbl_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2_Cl.npy", allow_pickle=True)[()]
+                if sparseBbl:
+                    Bbl = {
+                        'spin0xspin0' : sp.load_npz(f"{path}Bblspin0xspin0_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2_Cl.npz").toarray(),
+                        'spin0xspin2' : sp.load_npz(f"{path}Bblspin0xspin2_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2_Cl.npz").toarray(),
+                        'spin2xspin0' : sp.load_npz(f"{path}Bblspin2xspin0_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2_Cl.npz").toarray(),
+                        'spin2xspin2' : sp.load_npz(f"{path}Bblspin2xspin2_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2_Cl.npz").toarray()
+                    }
+                else:
+                    Bbl = np.load(f"{path}Bbl_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2_Cl.npy", allow_pickle=True)[()]
             else:
                 mbb_inv = np.load(f"{path}mbb_inv_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2.npy", allow_pickle=True)
-                Bbl = np.load(f"{path}Bbl_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2.npy", allow_pickle=True)[()]
+                if sparseBbl:
+                    Bbl = {
+                        'spin0xspin0' : sp.load_npz(f"{path}Bblspin0xspin0_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2.npz").toarray(),
+                        'spin0xspin2' : sp.load_npz(f"{path}Bblspin0xspin2_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2.npz").toarray(),
+                        'spin2xspin0' : sp.load_npz(f"{path}Bblspin2xspin0_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2.npz").toarray(),
+                        'spin2xspin2' : sp.load_npz(f"{path}Bblspin2xspin2_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2.npz").toarray()
+                    }
+                else:
+                    Bbl = np.load(f"{path}Bbl_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2.npy", allow_pickle=True)[()]
         else:
             if type_Cl:
                 mbb_inv = np.load(f"{path}mbb_inv_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0_Cl.npy", allow_pickle=True)
-                Bbl = np.load(f"{path}Bbl_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0_Cl.npy", allow_pickle=True)[()]
+                if sparseBbl:
+                    Bbl = sp.load_npz(f"{path}Bbl_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0_Cl.npz").toarray()
+                else:
+                    Bbl = np.load(f"{path}Bbl_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0_Cl.npy", allow_pickle=True)[()]
             else:
                 mbb_inv = np.load(f"{path}mbb_inv_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0.npy", allow_pickle=True)
-                Bbl = np.load(f"{path}Bbl_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0.npy", allow_pickle=True)[()]
+                if sparseBbl:
+                    Bbl = sp.load_npz(f"{path}Bbl_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0.npz").toarray()
+                else:
+                    Bbl = np.load(f"{path}Bbl_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0.npy", allow_pickle=True)[()]
         binning_file = f"{path}lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}"
 
         return mbb_inv, binning_file, Bbl

@@ -100,8 +100,8 @@ def plot_power(s10_spectra, hd_spectra, components, freqs):
 
     # Plot configs
     s10_kwargs = {'ls': '-', 'lw': 5, 'alpha': 0.5}
-    hd_kwargs = {'ls': '-', 'lw': 1}
-    hd2_kwargs = {'ls': ':', 'lw': 1}
+    hd_kwargs = {'ls': '-', 'lw': 1, 'alpha': 0.9}
+    hd2_kwargs = {'ls': ':', 'lw': 1, 'alpha': 0.9}
     fdiff_kwargs = {'ls': '-', 'lw': 1, 'alpha': 0.7}
     fdiff2_kwargs = {'ls': ':', 'lw': 1, 'alpha': 0.7}
     freq_label_kwargs = {'ls': '-', 'lw': 1.5}
@@ -277,17 +277,12 @@ def plot_power(s10_spectra, hd_spectra, components, freqs):
     fig.tight_layout()
     plt.show()
 
-def cmb_plots(cmb_spectra, components=['TT', 'EE', 'BB', 'TE'], plt_lmin=30, plt_lmax=20000):
-    patch_color = '#005fc9'
-    theory_color = '#02ad02'
+def cmb_plots(cmb_spectra, components=['TT', 'EE', 'BB', 'TE'], plt_lmin=30, plt_lmax=20000, fdiff_ylim = [-50, 50], fdiff_ylim_TE = [-100, 100], 
+              patch_kwargs = {'ls': '-', 'lw': 1, 'alpha': 0.7}, theory_kwargs = {'ls': '--', 'lw': 1, 'alpha': 1}, patch_color = '#005fc9', theory_color = '#02ad02', 
+              labels = {'lensed_patch':'Lensed Patch', 'lensed_theory':'Lensed Theory'}):
     fdiff_color = patch_color
-
-    patch_kwargs = {'ls': '-', 'lw': 1, 'alpha': 0.7}
-    theory_kwargs = {'ls': '--', 'lw': 1, 'alpha': 1}
+    
     fdiff_kwargs = patch_kwargs
-
-    fdiff_ylim = [-50, 50]
-    fdiff_ylim_TE = [-100, 100]
 
     ylabels = {
         'TT': r'$D_\ell^{TT}~[\mu K^2]$', 'EE': r'$D_\ell^{EE}~[\mu K^2]$',
@@ -311,7 +306,7 @@ def cmb_plots(cmb_spectra, components=['TT', 'EE', 'BB', 'TE'], plt_lmin=30, plt
                 data = cmb_spectra[comp][key]
                 loc = (data['ells'] >= plt_lmin) & (data['ells'] <= plt_lmax)
                 ax1.plot(data['ells'][loc], data['dl'][loc], color=color,
-                         label=key.replace('_', ' ').title(), **kwargs)
+                         label=labels[key], **kwargs)
 
         patch_data = cmb_spectra[comp].get('lensed_patch')
         theory_data = cmb_spectra[comp].get('lensed_theory')
