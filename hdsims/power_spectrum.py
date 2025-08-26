@@ -230,7 +230,7 @@ class Spectra:
 
         return mbb_inv, binning_file, Bbl
 
-    def get_foreground_power(self, patch, mbb_inv, binning_file, deconvolve_pw = True, type_Cl = False):
+    def get_foreground_power(self, patch, mbb_inv, binning_file, deconvolve_pw = True, type_Cl = False, give_raw_power = False):
         """
         Saves power spectrum of foreground (spin0) patch.
     
@@ -264,6 +264,8 @@ class Spectra:
         
         self.logger.info(f"Get spectra")
         ell_patch, power_patch = so_spectra.get_spectra(alms)
+        if give_raw_power:
+            return power_patch, ell_patch
         if type_Cl:
             patch_ells, patch_cls = so_spectra.bin_spectra(ell_patch, power_patch, binning_file, self.l_max, type="Cl", mbb_inv=mbb_inv)
             return patch_cls, patch_ells
@@ -271,17 +273,22 @@ class Spectra:
             patch_ells, patch_dls = so_spectra.bin_spectra(ell_patch, power_patch, binning_file, self.l_max, type="Dl", mbb_inv=mbb_inv)
             return patch_dls, patch_ells
 
-    def get_CMB_power(self, cmb, mbb_inv, binning_file, deconvolve_pw = False,
-                      spectra = ["TT", "TE", "TB", "ET", "BT", "EE", "EB", "BE", "BB"]):
+    def get_CMB_power(self, cmb, mbb_inv, binning_file, deconvolve_pw = False, spectra = ["TT", "TE", "TB", "ET", "BT", "EE", "EB", "BE", "BB"], apodize=True):
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width)
         window = self.make_apod_window(shape, wcs, self.apod_width, map_type='pixell')
         window_ones = self.enmap2pspy(enmap.ones(shape, wcs))
         
-        self.logger.info(f"Projecting")
-        imap_T = enmap.project( cmb.data[0], shape, wcs) * window
-        imap_Q = enmap.project( cmb.data[1], shape, wcs) * window
-        imap_U = enmap.project( cmb.data[2], shape, wcs) * window
-
+        if apodize:
+            self.logger.info(f"Projecting/Apodizing")
+            imap_T = enmap.project( cmb.data[0], shape, wcs) * window
+            imap_Q = enmap.project( cmb.data[1], shape, wcs) * window
+            imap_U = enmap.project( cmb.data[2], shape, wcs) * window
+        else:
+            self.logger.info(f"Projecting")
+            imap_T = enmap.project( cmb.data[0], shape, wcs)
+            imap_Q = enmap.project( cmb.data[1], shape, wcs)
+            imap_U = enmap.project( cmb.data[2], shape, wcs)
+        
         if deconvolve_pw:
             self.logger.info(f"Deconvolving")
             imap_T = enmap.unapply_window(imap_T)

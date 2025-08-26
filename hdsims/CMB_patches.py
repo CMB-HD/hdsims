@@ -92,32 +92,42 @@ class CMB:
 
     #############################################
 
-    def kappa_to_phi(self,kappa_alm,kappa_ainfo=None):
-    	oalm = curvedsky.almxfl(alm=kappa_alm,lfilter=lambda x: 2./(x*(x+1)) ,ainfo=kappa_ainfo)
-    	oalm[~np.isfinite(oalm)] = 0
-    	return oalm
+    def kappa_to_phi(self, kappa_alm, kappa_ainfo=None):
+        oalm = curvedsky.almxfl(
+            alm=kappa_alm,
+            lfilter=lambda x: 2. / (x * (x + 1)),
+            ainfo=kappa_ainfo
+        )
+        oalm[~np.isfinite(oalm)] = 0
+        return oalm
 
-    def save_CMB_alms(self, cmb_unlensed, kappa_map):
+    def save_CMB_alms(self, cmb_unlensed, kappa_map, apodize_for_alms):
             
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
+        if apodize_for_alms:
+            window_apod = self.make_apod_window(shape, wcs, self.apod_width, map_type='pixell')
+        else:
+            window_apod = self.enmap2pspy(enmap.ones(shape, wcs)).data
         window_ones = self.enmap2pspy(enmap.ones(shape, wcs))
         lmax_raw = min(self.l_max,int(window_ones.get_lmax_limit()))
 
         alms_unlensed = []
         for type_unlensed in [0,1,2]:
             self.logger.info(f"Computing CMB-{type_unlensed} alms")
-            unlensed_map = cmb_unlensed.data[type_unlensed]
-            alms_unlensed.append(sph_tools.get_alms(self.enmap2pspy(unlensed_map), window_ones, niter=0, lmax=lmax_raw))
+            unlensed_map = enmap.project(cmb_unlensed.data[type_unlensed], shape, wcs) * window_apod
+            alms_unlensed.append(sph_tools.get_alms(self.enmap2pspy(unlensed_map), 
+                                                    window_ones, niter=0, lmax=lmax_raw))
 
         self.logger.info(f"Computing Kappa alms")
+        kappa_map.data = enmap.project(kappa_map.data, shape, wcs) * window_apod
         alms_kappa = sph_tools.get_alms(kappa_map, window_ones, niter=0, lmax=lmax_raw)
         self.logger.info(f"Computing Phi alms")
         alms_phi = self.kappa_to_phi(alms_kappa)
         
         return alms_unlensed, alms_phi
 
-    def do_lensing(self, cmb_unlensed, kappa_map):
-        alms_unlensed, alms_phi = self.save_CMB_alms(cmb_unlensed, kappa_map)
+    def do_lensing(self, cmb_unlensed, kappa_map, apodize_for_alms=True):
+        alms_unlensed, alms_phi = self.save_CMB_alms(cmb_unlensed, kappa_map, apodize_for_alms)
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
 
         cmb = so_map.car_template(3, self.ra-self.final_width/2, self.ra+self.final_width/2, self.dec-self.final_width/2, self.dec+self.final_width/2, self.res)
@@ -131,3 +141,31 @@ class CMB:
             cmb.data[type_unlensed] = lensed_map.copy()
         
         return cmb
+        '''
+        #flatlensing:
+        shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
+        gradphi_enmap = enmap.grad(self.map_kappa_to_phi(kappa_map))
+
+        cmb = so_map.car_template(3, self.ra-self.final_width/2, self.ra+self.final_width/2, self.dec-self.final_width/2, self.dec+self.final_width/2, self.res)
+        for type_unlensed in [0,1,2]:
+            self.logger.info(f"Lensing CMB-{type_unlensed} map")
+            lensed_map = enmap.ones(shape, wcs)
+            lensed_map.data *= lensing.lens_map(np.tile(cmb_unlensed.data[type_unlensed], (1, 1, 1)), gradphi_enmap)[0]
+            self.logger.info(f"Did Lensing")
+            slensed_map = enmap.apply_window(lensed_map)
+            self.logger.info(f"Convolved")
+            cmb.data[type_unlensed] = lensed_map.copy()
+        
+        return cmb
+
+    def map_kappa_to_phi(self, so_kappa_map):
+        shape, wcs = so_kappa_map.data.shape, so_kappa_map.data.wcs
+        kappa_fft = enmap.fft(so_kappa_map.data)
+        L = enmap.modlmap(shape, wcs)
+        L_safe = np.where(L == 0, 1, L)
+        
+        phi_fft = 2 * kappa_fft / L_safe**2
+        phi_map = enmap.ifft(phi_fft).real
+        
+        return phi_map
+        '''
