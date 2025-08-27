@@ -515,7 +515,7 @@ class Foregrounds:
         bounds = [(-5, 5)]
         def func_to_minimize(n_kappa):
             theory_cls = ((template_ells/template_ell0_index)**n_kappa) * A_val * template_cls
-            patch_cls_avg_minimization = (patch_cls[patch_minimization_indexs+1]+patch_cls[patch_minimization_index]+patch_cls[patch_minimization_index-1])/3
+            patch_cls_avg_minimization = (patch_cls[patch_minimization_index+1]+patch_cls[patch_minimization_index]+patch_cls[patch_minimization_index-1])/3
             theory_cls_avg_minimization = (theory_cls[template_minimization_index+1]+theory_cls[template_minimization_index]+theory_cls[template_minimization_index-1])
             return (theory_cls_avg_minimization - patch_cls_avg_minimization)**2
         result = scipy.optimize.minimize(func_to_minimize, initial_guess, method='Nelder-Mead', bounds=bounds)
