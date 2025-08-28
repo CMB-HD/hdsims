@@ -505,7 +505,7 @@ class Foregrounds:
         # A fixes the point at ell0
 
         patch_cls_avg_ell0 = (patch_cls[patch_ell0_index+1]+patch_cls[patch_ell0_index]+patch_cls[patch_ell0_index-1])/3
-        template_cls_avg_ell0 = (template_cls[template_ell0_index+1]+template_cls[template_ell0_index]+template_cls[template_ell0_index-1])
+        template_cls_avg_ell0 = (template_cls[template_ell0_index+1]+template_cls[template_ell0_index]+template_cls[template_ell0_index-1])/3
         # This sets A based on the patch at ell0
         A_val = patch_cls_avg_ell0/template_cls_avg_ell0
         self.logger.info(f"% Difference at ~ell0 is now {100*(patch_cls_avg_ell0 - A_val * template_cls_avg_ell0)/(A_val * template_cls_avg_ell0)}")
@@ -516,7 +516,7 @@ class Foregrounds:
         def func_to_minimize(n_kappa):
             theory_cls = ((template_ells/template_ell0_index)**n_kappa) * A_val * template_cls
             patch_cls_avg_minimization = (patch_cls[patch_minimization_index+1]+patch_cls[patch_minimization_index]+patch_cls[patch_minimization_index-1])/3
-            theory_cls_avg_minimization = (theory_cls[template_minimization_index+1]+theory_cls[template_minimization_index]+theory_cls[template_minimization_index-1])
+            theory_cls_avg_minimization = (theory_cls[template_minimization_index+1]+theory_cls[template_minimization_index]+theory_cls[template_minimization_index-1])/3
             return (theory_cls_avg_minimization - patch_cls_avg_minimization)**2
         result = scipy.optimize.minimize(func_to_minimize, initial_guess, method='Nelder-Mead', bounds=bounds)
     

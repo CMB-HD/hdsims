@@ -84,8 +84,9 @@ class CMB:
     
     def make_unlensed_patch(self, theory_path, cmb_seed):
 
-        self.logger.info(f"making unlensed CMB sim for {round(self.res,2)}' {round(self.final_width,2)} x {round(self.final_width,2)} deg patch with seed = {cmb_seed}")
-        cmb = so_map.car_template(3, self.ra-self.final_width/2, self.ra+self.final_width/2, self.dec-self.final_width/2, self.dec+self.final_width/2, self.res)
+        paddedwidth = self.final_width + 2*self.apod_width
+        self.logger.info(f"making unlensed CMB sim for {round(self.res,2)}' {round(paddedwidth,2)} x {round(paddedwidth,2)} deg patch with seed = {cmb_seed}")
+        cmb = so_map.car_template(3, self.ra-paddedwidth/2, self.ra+paddedwidth/2, self.dec-paddedwidth/2, self.dec+paddedwidth/2, self.res)
         cl_file = os.path.join(theory_path)
         cmb.data = curvedsky.rand_map(cmb.data.shape, cmb.data.wcs, powspec.read_spectrum(cl_file)[: 3, : 3], seed = cmb_seed)
         return cmb
@@ -102,8 +103,8 @@ class CMB:
         return oalm
 
     def save_CMB_alms(self, cmb_unlensed, kappa_map, apodize_for_alms):
-            
-        shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
+        padded_width = self.final_width + 2*self.apod_width
+        shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, padded_width, height=padded_width)
         if apodize_for_alms:
             window_apod = self.make_apod_window(shape, wcs, self.apod_width, map_type='pixell')
         else:
@@ -126,11 +127,19 @@ class CMB:
         
         return alms_unlensed, alms_phi
 
-    def do_lensing(self, cmb_unlensed, kappa_map, apodize_for_alms=True):
-        alms_unlensed, alms_phi = self.save_CMB_alms(cmb_unlensed, kappa_map, apodize_for_alms)
+    def get_innerPatch(self, patch):
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
+        inner_patch = enmap.project(patch.data, shape, wcs)
+        self.logger.info(f"Cut inner patch down to {self.final_width}x{self.final_width}")
+        
+        return self.enmap2pspy(inner_patch)
 
-        cmb = so_map.car_template(3, self.ra-self.final_width/2, self.ra+self.final_width/2, self.dec-self.final_width/2, self.dec+self.final_width/2, self.res)
+    def do_lensing(self, cmb_unlensed, kappa_map, apodize_for_alms=True):
+        padded_width = self.final_width + 2*self.apod_width
+        alms_unlensed, alms_phi = self.save_CMB_alms(cmb_unlensed, kappa_map, apodize_for_alms)
+        shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, padded_width, height=padded_width)
+
+        cmb = so_map.car_template(3, self.ra-padded_width/2, self.ra+padded_width/2, self.dec-padded_width/2, self.dec+padded_width/2, self.res)
         for type_unlensed in [0,1,2]:
             self.logger.info(f"Lensing CMB-{type_unlensed} map")
             lensed_map = enmap.ones(shape, wcs)
@@ -139,33 +148,5 @@ class CMB:
             lensed_map = enmap.apply_window(lensed_map)
             self.logger.info(f"Convolved")
             cmb.data[type_unlensed] = lensed_map.copy()
-        
-        return cmb
-        '''
-        #flatlensing:
-        shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
-        gradphi_enmap = enmap.grad(self.map_kappa_to_phi(kappa_map))
 
-        cmb = so_map.car_template(3, self.ra-self.final_width/2, self.ra+self.final_width/2, self.dec-self.final_width/2, self.dec+self.final_width/2, self.res)
-        for type_unlensed in [0,1,2]:
-            self.logger.info(f"Lensing CMB-{type_unlensed} map")
-            lensed_map = enmap.ones(shape, wcs)
-            lensed_map.data *= lensing.lens_map(np.tile(cmb_unlensed.data[type_unlensed], (1, 1, 1)), gradphi_enmap)[0]
-            self.logger.info(f"Did Lensing")
-            slensed_map = enmap.apply_window(lensed_map)
-            self.logger.info(f"Convolved")
-            cmb.data[type_unlensed] = lensed_map.copy()
-        
-        return cmb
-
-    def map_kappa_to_phi(self, so_kappa_map):
-        shape, wcs = so_kappa_map.data.shape, so_kappa_map.data.wcs
-        kappa_fft = enmap.fft(so_kappa_map.data)
-        L = enmap.modlmap(shape, wcs)
-        L_safe = np.where(L == 0, 1, L)
-        
-        phi_fft = 2 * kappa_fft / L_safe**2
-        phi_map = enmap.ifft(phi_fft).real
-        
-        return phi_map
-        '''
+        return self.get_innerPatch(cmb)
