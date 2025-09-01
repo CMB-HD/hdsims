@@ -7,6 +7,7 @@ from pixell import reproject, enmap, curvedsky, utils
 import pandas as pd
 import scipy
 import camb
+from .power_spectrum import Spectra
 
 class Foregrounds:
     T_CMB = 2.7255e6
@@ -211,7 +212,7 @@ class Foregrounds:
         
         return self.enmap2pspy(inner_patch)
 
-    def generate_diffuse_foreground(self, component, frequency, fullsky_deconvolved_path = None, S10_largeApodized_path = None):
+    def generate_diffuse_foreground(self, component, frequency, fullsky_deconvolved_path = None, S10_largeApodized_path = None, return_Apodized_patch = False):
         """
         Generates a patch of a diffuse foreground (e.g. tSZ, kappa) at a given frequency.
     
@@ -260,6 +261,9 @@ class Foregrounds:
         else:
             largerPatch_HD_pwConvolved = largerPatch_HD.copy()
         innerPatch = self.get_innerPatch(largerPatch_HD_pwConvolved)
+
+        if return_Apodized_patch:
+            return largerPatch, innerPatch
 
         return innerPatch
 
@@ -374,7 +378,7 @@ class Foregrounds:
         
         return initial_patch
 
-    def generate_discrete_foreground(self, frequency, catalog, scaling_factor = 1.0):
+    def generate_discrete_foreground(self, frequency, catalog, scaling_factor = 1.0, return_Apodized_patch = False):
         """
         Generates a patch of a discrete foregrounds (e.g. radio, CIB) at a given frequency from a custom catalog.
     
@@ -408,6 +412,9 @@ class Foregrounds:
         
         largerPatch_HD_pwConvolved = self.convolve_largerPatch_with_pw(apodized_patch)
         innerPatch = self.get_innerPatch(largerPatch_HD_pwConvolved)
+
+        if return_Apodized_patch:
+            return apodized_patch, innerPatch
 
         return innerPatch
 
@@ -722,34 +729,42 @@ class Foregrounds:
         
         return main_data_text, main_data_dat
 
-    def extend_to_small_scales(self, S10_patch, patch_type, mbb_inv, binning_file):
+    def extend_to_small_scales(self, S10_patch, patch_type, template_ells, template_cls, mbb_inv, binning_file, spectra_apod_width=1.0, spectra_final_width=10.0):
+        spectra_HD = Spectra(
+            ra = self.ra,
+            dec = self.dec,
+            final_width = spectra_final_width,
+            res = self.new_res,
+            apod_width = spectra_apod_width,
+            l_max = self.l_max)
+        
         if patch_type == 'kappa':
-            S10_kappa_cls, S10_kappa_ells = spectra_HD.get_foreground_power(S10_kappa_patch, mbb_inv, binning_file, deconvolve_pw = False, type_Cl = True)
+            S10_kappa_cls, S10_kappa_ells = spectra_HD.get_foreground_power(S10_patch, mbb_inv, binning_file, deconvolve_pw = False, type_Cl = True)
             
-            smallScale_kappa_alms, smallScale_kappa_ells, smallScale_kappa_cls = foregrounds_HD_kappa.get_theory_for_stitching(template_cls,
+            smallScale_kappa_alms, smallScale_kappa_ells, smallScale_kappa_cls = self.get_theory_for_stitching(template_cls,
                                                                                           template_ells,
                                                                                           S10_kappa_cls, 
                                                                                           S10_kappa_ells, \
                                                                                           template_minimization_index = 3902, 
                                                                                           patch_minimization_index = 19)
         
-            kappa_alms_for_stitching_resized = foregrounds_HD_kappa.get_S10_for_stitching(S10_kappa_patch)
-            HD_kappa_patch = foregrounds_HD_kappa.stitch_alms(alms_theory = smallScale_kappa_alms, alms_S10 = kappa_alms_for_stitching_resized, 
+            kappa_alms_for_stitching_resized = self.get_S10_for_stitching(S10_patch)
+            HD_kappa_patch = self.stitch_alms(alms_theory = smallScale_kappa_alms, alms_S10 = kappa_alms_for_stitching_resized, 
                                                                l_cutoff = 4000)
             return HD_kappa_patch, {"l": smallScale_kappa_ells, "cl": smallScale_kappa_cls}
             
         elif patch_type == 'kSZ':
-            S10_kSZ_cls, S10_kSZ_ells = spectra_HD.get_foreground_power(S10_kSZ_patch, mbb_inv, binning_file, deconvolve_pw = True, type_Cl = True)
+            S10_kSZ_cls, S10_kSZ_ells = spectra_HD.get_foreground_power(S10_patch, mbb_inv, binning_file, deconvolve_pw = True, type_Cl = True)
             
-            smallScale_kSZ_alms, smallScale_kSZ_ells, smallScale_kSZ_cls = foregrounds_HD.get_theory_for_stitching(template_cls,
+            smallScale_kSZ_alms, smallScale_kSZ_ells, smallScale_kSZ_cls = self.get_theory_for_stitching(template_cls,
                                                                                   template_ells,
                                                                                   S10_kSZ_cls, 
                                                                                   S10_kSZ_ells, \
                                                                                   template_minimization_index = 8102, 
                                                                                   patch_minimization_index = 40)
             
-            kSZ_alms_for_stitching_resized = foregrounds_HD.get_S10_for_stitching(S10_kSZ_patch)
-            HD_kSZ_patch_extended = foregrounds_HD.stitch_alms(alms_theory = smallScale_kSZ_alms, alms_S10 = kSZ_alms_for_stitching_resized, 
+            kSZ_alms_for_stitching_resized = self.get_S10_for_stitching(S10_patch)
+            HD_kSZ_patch_extended = self.stitch_alms(alms_theory = smallScale_kSZ_alms, alms_S10 = kSZ_alms_for_stitching_resized, 
                                                            l_cutoff = 8000)
             return HD_kSZ_patch_extended, {"l": smallScale_kSZ_ells, "cl": smallScale_kSZ_cls}
 
@@ -797,17 +812,16 @@ class Foregrounds:
         
         return initial_patch
 
-    def make_CIB_model_catalog(CIB_model, CIB_catalog_original, frequencies=[30,90,148,219,277,350], sigma_pix_frac=0.2, seed=0):
+    def make_CIB_model_catalog(self, CIB_model, CIB_catalog_original, frequencies=[30,90,148,219,277,350], sigma_pix_frac=0.2, seed=0):
     
         CIB_resolutions = [hp.nside2resol(8192, arcmin=True), 0.25]
-        CIB_lmaxs = [12574, 24000]
         
         CIB_sim = {
             freq: self.place_CIB_sources_in_largerPatch(
                 catalog=CIB_catalog_original,
                 frequency=freq,
                 scaling_factor=0.75,
-                CIB_resolution=[CIB_model - 1]
+                CIB_resolution=CIB_resolutions[CIB_model - 1]
             )
             for freq in frequencies
         }
