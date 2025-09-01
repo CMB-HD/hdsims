@@ -91,7 +91,7 @@ class Foregrounds:
 
         return fullsky_map
 
-    def extract_largerPatch_from_fullsky(self, fullsky_map, fullsky_res):
+    def extract_largerPatch_from_fullsky(self, fullsky_map, fullsky_res, lmax_to_extract):
         """
         Cuts out patch of sky from full-sky data
     
@@ -116,7 +116,7 @@ class Foregrounds:
 
         self.logger.info(f"Getting S10 resolution patch (sources_patch)")
         template_car = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, fullsky_res)
-        sim_patch = reproject.healpix2map(fullsky_map.data, template_car.data.shape, template_car.data.wcs, spin=[0], lmax=self.l_max)
+        sim_patch = reproject.healpix2map(fullsky_map.data, template_car.data.shape, template_car.data.wcs, spin=[0], lmax=lmax_to_extract)
 
         self.logger.info(f"Apodizing S10 patch (apodized_patch)")
         so_patch_larger = so_map.from_enmap(sim_patch)
@@ -146,10 +146,6 @@ class Foregrounds:
             Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width.
         """
 
-        if fullsky_res == self.new_res:
-            self.logger.info(f"No need to upsample, already at the desired resolution")
-            return apodized_patch_old
-
         width = self.final_width + 2*self.apod_width
         ra_min = self.ra - width/2
         ra_max = self.ra + width/2
@@ -163,7 +159,6 @@ class Foregrounds:
                                                     template_car_larger_highRes.data.shape,
                                                     order=3)
                                     )
-
         return so_patch_larger_upsampled
 
     def convolve_largerPatch_with_pw(self, patch):
@@ -246,8 +241,13 @@ class Foregrounds:
         if fullsky_deconvolved_path != None:
             fullsky_map = so_map.healpix_template(1, nside)
             fullsky_map.data[:] = hp.read_map(fullsky_deconvolved_path)
-                
-            largerPatch = self.extract_largerPatch_from_fullsky(fullsky_map, fullsky_res)
+
+            if component == 'kappa':
+                # nside = 4096 for kappa is not big enough to extract a full lmax=24000 patch without error. Luckily we don't use the high-ell
+                # values anyway, so we can just make sure we extract at the fullsky lmax for kappa
+                largerPatch = self.extract_largerPatch_from_fullsky(fullsky_map, fullsky_res, lmax_to_extract = 6287)
+            else:
+                largerPatch = self.extract_largerPatch_from_fullsky(fullsky_map, fullsky_res, lmax_to_extract = self.l_max)
         elif S10_largeApodized_path != None:
             largerPatch = so_map.read_map(S10_largeApodized_path)
         else:
