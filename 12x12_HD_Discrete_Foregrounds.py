@@ -67,30 +67,8 @@ for frequency in [30,90,148,219,277,350]:
 
 ################################################################### CIB Model 1
 
-CIB_model = 1
-CIB_catalog_original = pd.read_csv(f"{overall_path_example}S10_patches/CIB_14x14deg_source_catalog_ra=6_dec=6.csv")
+CIB_catalog = foregrounds_HD.make_CIB_model_catalog(CIB_model=1, CIB_catalog_original = pd.read_csv(f"{overall_path_example}S10_patches/CIB_14x14deg_source_catalog_ra=6_dec=6.csv"))
 
-CIB_resolutions = [S10_resolution, 0.25]
-CIB_lmaxs = [12574, 24000]
-
-foregrounds_CIB = Foregrounds(
-    ra = 6,
-    dec = 6,
-    final_width = 12.0,
-    new_res = CIB_resolutions[CIB_model-1],
-    apod_width = 1.0,
-    l_max = CIB_lmaxs[CIB_model-1])
-
-CIB_sim = {
-    30: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=30, scaling_factor=0.75),
-    90: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=90, scaling_factor=0.75),
-    148: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=148, scaling_factor=0.75),
-    219: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=219, scaling_factor=0.75),
-    277: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=277, scaling_factor=0.75),
-    350: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=350, scaling_factor=0.75)
-}
-
-CIB_catalog = foregrounds_HD.make_catalog_from_sims(sims = CIB_sim, sigma_pix_frac=0.2, seed=0)
 mbb_inv, binning_file, Bbl = spectra_HD.get_binning_files(path = f"{overall_path_example}binning_files/")
 
 for frequency in [30,90,148,219,277,350]:
@@ -104,37 +82,15 @@ for frequency in [30,90,148,219,277,350]:
 
 ################################################################### CIB Model 2
 
-CIB_model = 2
-CIB_catalog_original = pd.read_csv(f"{overall_path_example}S10_patches/CIB_14x14deg_source_catalog_ra=6_dec=6.csv")
+CIB_catalog = foregrounds_HD.make_CIB_model_catalog(CIB_model=2, CIB_catalog_original = pd.read_csv(f"{overall_path_example}S10_patches/CIB_14x14deg_source_catalog_ra=6_dec=6.csv"))
 
-CIB_resolutions = [S10_resolution, 0.25]
-CIB_lmaxs = [12574, 24000]
-
-foregrounds_CIB = Foregrounds(
-    ra = 6,
-    dec = 6,
-    final_width = 12.0,
-    new_res = CIB_resolutions[CIB_model-1],
-    apod_width = 1.0,
-    l_max = CIB_lmaxs[CIB_model-1])
-
-CIB_sim = {
-    30: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=30, scaling_factor=0.75),
-    90: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=90, scaling_factor=0.75),
-    148: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=148, scaling_factor=0.75),
-    219: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=219, scaling_factor=0.75),
-    277: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=277, scaling_factor=0.75),
-    350: foregrounds_CIB.place_sources_in_largerPatch(catalog = CIB_catalog_original, frequency=350, scaling_factor=0.75)
-}
-
-CIB_catalog = foregrounds_HD.make_catalog_from_sims(sims = CIB_sim, sigma_pix_frac=0.2, seed=0)
 mbb_inv, binning_file, Bbl = spectra_HD.get_binning_files(path = f"{overall_path_example}binning_files/")
 
 for frequency in [30,90,148,219,277,350]:
     HD_CIB_patch = foregrounds_HD.generate_discrete_foreground(
                                     frequency = frequency,
                                     catalog = CIB_catalog)
-    HD_CIB_patch.write_map(f"{overall_path_example}CIB2_{frequency}GHz_12x12deg_ra=6_dec=6")
+    HD_CIB_patch.write_map(f"{overall_path_example}CIB_{frequency}GHz_12x12deg_ra=6_dec=6")
 
     HD_CIB_dls, HD_CIB_ells = spectra_HD.get_foreground_power(HD_CIB_patch, mbb_inv, binning_file, deconvolve_pw = True)
-    np.save(f"{overall_path_example}CIB2_{frequency}GHz_10x10deg_ra=6_dec=6_spectra.npy", {"l": HD_CIB_ells, "dl": HD_CIB_dls})
+    np.save(f"{overall_path_example}CIB_{frequency}GHz_10x10deg_ra=6_dec=6_spectra.npy", {"l": HD_CIB_ells, "dl": HD_CIB_dls})

@@ -6,6 +6,7 @@ from pspy import so_map, so_window, sph_tools
 from pixell import reproject, enmap, curvedsky, utils
 import pandas as pd
 import scipy
+import camb
 
 class Foregrounds:
     T_CMB = 2.7255e6
@@ -683,3 +684,133 @@ class Foregrounds:
         random_ras = ras + ra_scatter
         random_decs = decs + dec_scatter
         return random_ras, random_decs
+
+    def get_kappa_theory(self, ini_file = 'S10_data/bode_almost_wmap5_params_highKeta.ini'):
+        pars = camb.read_ini(ini_file)
+        # high-accuracy settings
+        pars.set_matter_power(kmax=10, k_per_logint=130)
+        pars.set_for_lmax (self.l_max, \
+            lens_potential_accuracy =30 , \
+            lens_margin =2050)
+        pars.set_accuracy ( AccuracyBoost =1.1 , \
+            lSampleBoost =3.0 , lAccuracyBoost =3.0 , \
+            DoLateRadTruncation = False, min_l_logl_sampling=10000 )
+        pars.NonLinear = camb.model.NonLinear_both
+        pars.NonLinearModel.set_params("mead2016")
+        results = camb.get_results(pars)
+        
+        lensed = results.get_cmb_power_spectra(pars, CMB_unit='muK')['total']
+        unlensed = results.get_cmb_power_spectra(pars, raw_cl=True, CMB_unit='muK')['unlensed_scalar']
+        
+        ells = np.arange(0, lensed.shape[0])
+        lensCL = results.get_lens_potential_cls(lmax=lensed.shape[0] + 2)
+        kk = (ells * (ells + 1))**2 * lensCL[2:len(ells)+2, 0] / 4.0
+        main_data_text = np.column_stack([
+            ells,
+            lensed[:,0], lensed[:,1], lensed[:,2], lensed[:,3],
+            unlensed[:,0], unlensed[:,1], unlensed[:,2], unlensed[:,3],
+            kk
+        ])
+        
+        main_data_dat = np.column_stack([
+            ells, 
+            unlensed[:,0] * (ells * (ells+1)) / (2*np.pi), 
+            unlensed[:,1] * (ells * (ells+1)) / (2*np.pi), 
+            unlensed[:,2] * (ells * (ells+1)) / (2*np.pi), 
+            unlensed[:,3] * (ells * (ells+1)) / (2*np.pi)
+        ])
+        
+        return main_data_text, main_data_dat
+
+    def extend_to_small_scales(self, S10_patch, patch_type, mbb_inv, binning_file):
+        if patch_type == 'kappa':
+            S10_kappa_cls, S10_kappa_ells = spectra_HD.get_foreground_power(S10_kappa_patch, mbb_inv, binning_file, deconvolve_pw = False, type_Cl = True)
+            
+            smallScale_kappa_alms, smallScale_kappa_ells, smallScale_kappa_cls = foregrounds_HD_kappa.get_theory_for_stitching(template_cls,
+                                                                                          template_ells,
+                                                                                          S10_kappa_cls, 
+                                                                                          S10_kappa_ells, \
+                                                                                          template_minimization_index = 3902, 
+                                                                                          patch_minimization_index = 19)
+        
+            kappa_alms_for_stitching_resized = foregrounds_HD_kappa.get_S10_for_stitching(S10_kappa_patch)
+            HD_kappa_patch = foregrounds_HD_kappa.stitch_alms(alms_theory = smallScale_kappa_alms, alms_S10 = kappa_alms_for_stitching_resized, 
+                                                               l_cutoff = 4000)
+            return HD_kappa_patch, {"l": smallScale_kappa_ells, "cl": smallScale_kappa_cls}
+            
+        elif patch_type == 'kSZ':
+            S10_kSZ_cls, S10_kSZ_ells = spectra_HD.get_foreground_power(S10_kSZ_patch, mbb_inv, binning_file, deconvolve_pw = True, type_Cl = True)
+            
+            smallScale_kSZ_alms, smallScale_kSZ_ells, smallScale_kSZ_cls = foregrounds_HD.get_theory_for_stitching(template_cls,
+                                                                                  template_ells,
+                                                                                  S10_kSZ_cls, 
+                                                                                  S10_kSZ_ells, \
+                                                                                  template_minimization_index = 8102, 
+                                                                                  patch_minimization_index = 40)
+            
+            kSZ_alms_for_stitching_resized = foregrounds_HD.get_S10_for_stitching(S10_kSZ_patch)
+            HD_kSZ_patch_extended = foregrounds_HD.stitch_alms(alms_theory = smallScale_kSZ_alms, alms_S10 = kSZ_alms_for_stitching_resized, 
+                                                           l_cutoff = 8000)
+            return HD_kSZ_patch_extended, {"l": smallScale_kSZ_ells, "cl": smallScale_kSZ_cls}
+
+    def place_CIB_sources_in_largerPatch(self, catalog, frequency, scaling_factor, CIB_resolution):
+        width = self.final_width + 2*self.apod_width
+        ra_min = self.ra - width/2
+        ra_max = self.ra + width/2
+        dec_min = self.dec - width/2
+        dec_max = self.dec + width/2
+    
+        initial_patch = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, CIB_resolution)
+        pixsizemap = enmap.pixsizemap(initial_patch.data.shape, initial_patch.data.wcs)
+    
+        def get_pixel_ra(ra, shape=initial_patch.data.shape, wcs=initial_patch.data.wcs):
+            coord_pos = [[np.deg2rad(0)], [np.deg2rad(ra)]]
+            pixel = enmap.sky2pix(shape, wcs, coord_pos)
+            pixel_ra = int(round(pixel[1][0]))
+            if pixel_ra >= initial_patch.data.shape[1]:
+                return initial_patch.data.shape[1]-1
+            return pixel_ra
+        def get_pixel_dec(dec, shape=initial_patch.data.shape, wcs=initial_patch.data.wcs):
+            coord_pos = [[np.deg2rad(dec)], [np.deg2rad(0)]]
+            pixel = enmap.sky2pix(shape, wcs, coord_pos)
+            pixel_dec = int(round(pixel[0][0]))
+            if pixel_dec >= initial_patch.data.shape[0]:
+                return initial_patch.data.shape[0]-1
+            return pixel_dec
+    
+        flux_feature = str(frequency) + 'GHz_flux'
+        conversion_factor = self.freq_to_conversion[self.freq_to_freqpath[frequency]]
+    
+        self.logger.info(f"Adding sources")
+        for i in (np.arange(np.shape(catalog)[0])):      
+            # Convert to Jy/steradian
+            Jysteradian = (0.001*catalog[flux_feature][i])
+            # Convert to delta T / T_CMB (given conversion factor)
+            dTTcmb = Jysteradian/conversion_factor
+            # Convert to delta T
+            deltaT = dTTcmb * self.T_CMB
+    
+            initial_patch.data[get_pixel_dec(catalog['dec_deg'][i]),get_pixel_ra(catalog['ra_deg'][i])] += deltaT
+    
+        initial_patch.data[:] *= scaling_factor
+        initial_patch.data[:] /= pixsizemap.data[:]
+        
+        return initial_patch
+
+    def make_CIB_model_catalog(CIB_model, CIB_catalog_original, frequencies=[30,90,148,219,277,350], sigma_pix_frac=0.2, seed=0):
+    
+        CIB_resolutions = [hp.nside2resol(8192, arcmin=True), 0.25]
+        CIB_lmaxs = [12574, 24000]
+        
+        CIB_sim = {
+            freq: self.place_CIB_sources_in_largerPatch(
+                catalog=CIB_catalog_original,
+                frequency=freq,
+                scaling_factor=0.75,
+                CIB_resolution=[CIB_model - 1]
+            )
+            for freq in frequencies
+        }
+    
+        CIB_catalog = self.make_catalog_from_sims(sims = CIB_sim, sigma_pix_frac=sigma_pix_frac, seed=seed)
+        return CIB_catalog
