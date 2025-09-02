@@ -17,6 +17,7 @@ urls=(
   "https://lambda.gsfc.nasa.gov/data/tools/simulations/IRBasicPop.tar.gz"
   "https://lambda.gsfc.nasa.gov/data/tools/simulations/IRBlastPop.dat"
   "https://lambda.gsfc.nasa.gov/data/tools/simulations/radio.cat"
+  "https://lambda.gsfc.nasa.gov/data/tools/simulations/halo_sz.binary"
 )
 
 for url in "${urls[@]}"; do

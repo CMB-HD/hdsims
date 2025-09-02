@@ -332,6 +332,38 @@ class Foregrounds:
             input_df = input_df.reset_index()
         
             return input_df
+        elif component == 'SZ':            
+            ncols = 48
+            dtype = np.float32
+            filtered = []
+            
+            with open(data_path + "halo_sz.binary", "rb") as f:
+                while True:
+                    record = np.fromfile(f, dtype=dtype, count=ncols)
+                    if record.size < ncols:
+                        break
+                    if ra_min <= record[1] <= ra_max and dec_min <= record[2] <= dec_max:
+                        filtered.append(record)
+            
+            filtered = np.array(filtered)
+            
+            columns = [
+                "redshift", "ra_deg", "dec_deg",
+                "x_mpc", "y_mpc", "z_mpc",
+                "vx_kms", "vy_kms", "vz_kms",
+                "Mfof",
+                "Mvir", "Mgas_vir", "Rvir", "TSZ_Rvir", "KSZ_Rvir",
+                "SZ_148_Rvir", "SZ_219_Rvir", "SZ_277_Rvir", "SZ_30_Rvir", "SZ_90_Rvir", "SZ_350_Rvir",
+                "Mvir_R200", "Mgas_vir_R200", "R200", "TSZ_R200", "KSZ_R200",
+                "SZ_148_R200", "SZ_219_R200", "SZ_277_R200", "SZ_30_R200", "SZ_90_R200", "SZ_350_R200",
+                "Mvir_R500", "Mgas_vir_R500", "R500", "TSZ_R500", "KSZ_R500",
+                "SZ_148_R500", "SZ_219_R500", "SZ_277_R500", "SZ_30_R500", "SZ_90_R500", "SZ_350_R500",
+                "Mstar", "rho_gas_central", "T_central", "P_central", "phi_central"
+            ]
+            df = pd.DataFrame(filtered, columns=columns)
+            df = df.reset_index(drop=True)
+            
+            return df
 
     def place_sources_in_largerPatch(self, catalog, frequency, scaling_factor):
 
@@ -378,37 +410,27 @@ class Foregrounds:
         
         return initial_patch
 
-    def generate_discrete_foreground(self, frequency, catalog, scaling_factor = 1.0, return_Apodized_patch = False):
-        """
-        Generates a patch of a discrete foregrounds (e.g. radio, CIB) at a given frequency from a custom catalog.
-    
-        Parameters
-        ----------
-        frequency : int or None
-            Frequency of desired foreground (30, 90, 148, 219, 277, 350) or None for lensing convergence.
-        catalog : 
-            Input catalog of point sources.
-    
-        Returns
-        -------
-        innerPatch : so_map
-            Final processed diffuse foreground patch at resolution of self.new_res.
-        """
+    def generate_discrete_foreground(self, frequency, catalog = None, scaling_factor = 1.0, return_Apodized_patch = False, S10_largeApodized_path = None):
 
-        initial_patch = self.place_sources_in_largerPatch(catalog, frequency, scaling_factor)
-
-        width = self.final_width + 2*self.apod_width
-        ra_min = self.ra - width/2
-        ra_max = self.ra + width/2
-        dec_min = self.dec - width/2
-        dec_max = self.dec + width/2
-        self.logger.info(f"Apodizing S10 patch (apodized_patch)")
-        apodized_patch = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, self.new_res)
-        binary_car_larger_highRes = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, self.new_res)
-        binary_car_larger_highRes.data[:] = 0
-        binary_car_larger_highRes.data[1:-1, 1:-1] = 1
-        so_taper_larger_highRes = so_window.create_apodization(binary_car_larger_highRes, apo_type="C1", apo_radius_degree=self.apod_width)
-        apodized_patch.data[:] = initial_patch.data[:] * so_taper_larger_highRes.data[:]
+        if catalog != None:
+            initial_patch = self.place_sources_in_largerPatch(catalog, frequency, scaling_factor)
+    
+            width = self.final_width + 2*self.apod_width
+            ra_min = self.ra - width/2
+            ra_max = self.ra + width/2
+            dec_min = self.dec - width/2
+            dec_max = self.dec + width/2
+            self.logger.info(f"Apodizing S10 patch (apodized_patch)")
+            apodized_patch = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, self.new_res)
+            binary_car_larger_highRes = so_map.car_template(1, ra_min, ra_max, dec_min, dec_max, self.new_res)
+            binary_car_larger_highRes.data[:] = 0
+            binary_car_larger_highRes.data[1:-1, 1:-1] = 1
+            so_taper_larger_highRes = so_window.create_apodization(binary_car_larger_highRes, apo_type="C1", apo_radius_degree=self.apod_width)
+            apodized_patch.data[:] = initial_patch.data[:] * so_taper_larger_highRes.data[:]
+        elif S10_largeApodized_path != None:
+            apodized_patch = so_map.read_map(S10_largeApodized_path)
+        else:
+            self.logger.info(f"No input data included")
         
         largerPatch_HD_pwConvolved = self.convolve_largerPatch_with_pw(apodized_patch)
         innerPatch = self.get_innerPatch(largerPatch_HD_pwConvolved)

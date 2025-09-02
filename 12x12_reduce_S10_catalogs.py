@@ -34,3 +34,9 @@ catalog.to_csv(f"hdsims_output/S10_patches/{component}_14x14deg_source_catalog_r
 component = 'CIB'
 catalog = foregrounds_S10.make_catalog(data_path = 'S10_data/', component = component)
 catalog.to_csv(f"hdsims_output/S10_patches/{component}_14x14deg_source_catalog_ra=6_dec=6.csv")
+
+#################################
+
+component = 'SZ'
+catalog = foregrounds_S10.make_catalog(data_path = 'S10_data/', component = component)
+catalog.to_csv(f"hdsims_output/S10_patches/{component}_14x14deg_source_catalog_ra=6_dec=6.csv")
