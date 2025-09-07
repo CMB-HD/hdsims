@@ -8,11 +8,38 @@ from scipy.interpolate import interp1d
 import camb
 
 class CMB:
+    """
+    Class for simulating and lensing CMB patches using CAMB theory, pixell, and pspy tools.
+    Provides utilities for geometry setup, window/apodization, harmonic transforms, and
+    lensing of unlensed CMB maps by kappa.
+    """
 
     #############################################
     
     def __init__(self, ra, dec, final_width, apod_width, 
                  res, l_max, log_level=logging.INFO):
+        """
+        Initialize a CMB object.
+        
+        
+        Parameters
+        ----------
+        ra : float
+            Right ascension of the patch center in degrees.
+        dec : float
+            Declination of the patch center in degrees.
+        final_width : float
+            Desired angular width of the final patch in degrees (applies in both RA and DEC).
+        apod_width : float
+            Width of the apodization region applied to patch edges, in degrees.
+        res : float
+            Pixel resolution of final maps, in arcminutes.
+        l_max : int
+            Maximum multipole moment (ℓ) for spherical harmonic transforms.
+        log_level : int, optional
+            Logging verbosity level (default: logging.INFO).
+        """
+        
         self.ra = ra
         self.dec = dec
         self.final_width = final_width
@@ -33,6 +60,22 @@ class CMB:
     #############################################
 
     def enmap2pspy(self, imap):
+        """
+        Convert a pixell enmap to a pspy so_map.
+        
+        
+        Parameters
+        ----------
+        imap : enmap
+            Input pixell enmap array, with WCS and geometrys.
+        
+        
+        Returns
+        -------
+        omap : so_map
+            Equivalent pspy so_map containing the same data and geometry.
+        """
+        
         if len(imap.shape) > 2:
             ncomp = imap.shape[-3]
         else:
@@ -43,13 +86,27 @@ class CMB:
 
     def get_coord_box(self, ra_ctr, dec_ctr, width, height=None):
         """
-        Returns an array of [[dec_min, ra_max], [dec_max, ra_min]] for a map of
-        shape `width` x `height` (or a square map if the height is not provided),
-        centered at RA, dec = (`ra_ctr`, `dec_ctr`)
+        Compute coordinate box for a square or rectangular patch.
         
-        The `ra_ctr`, `dec_ctr`, `width`, and `height` should be in units of degrees;
-        the returned `coord_box` is in units of radians
+        
+        Parameters
+        ----------
+        ra_ctr : float
+            Center RA in degrees.
+        dec_ctr : float
+            Center DEC in degrees.
+        width : float
+            Patch width in degrees (RA extent).
+        height : float, optional
+            Patch height in degrees (DEC extent). If None, set equal to width.
+        
+        
+        Returns
+        -------
+        coord_box : ndarray of shape (2, 2)
+            [[dec_min, ra_max], [dec_max, ra_min]] in radians.
         """
+        
         height = width if (height is None) else height
         ra_min = ra_ctr - (width / 2)
         ra_max = ra_ctr + (width / 2)
@@ -59,17 +116,59 @@ class CMB:
         return np.deg2rad(coord_box)
     
     def get_shape_wcs(self, res, ra_ctr, dec_ctr, width, height=None):
-        """Returns the `shape` and `wcs` for a `pixell.enmap.ndmap` of the
-        given resolution and map geometry.
-    
-        `res` should be in units of arcminutes
-        `ra_ctr`, `dec_ctr`, `width`, and `height` should each be in units of degrees
         """
+        Compute shape and WCS for a pixell enmap patch.
+        
+        
+        Parameters
+        ----------
+        res : float
+            Pixel resolution in arcminutes.
+        ra_ctr : float
+            Center RA in degrees.
+        dec_ctr : float
+            Center DEC in degrees.
+        width : float
+            Patch width in degrees.
+        height : float, optional
+            Patch height in degrees. If None, set equal to width.
+        
+        
+        Returns
+        -------
+        shape : tuple of int
+            Shape of the enmap array (ny, nx).
+        wcs : WCS
+            World coordinate system for the patch.
+        """
+        
         coord_box = self.get_coord_box(ra_ctr, dec_ctr, width, height=height)
         shape, wcs = enmap.geometry(pos=coord_box, res=res * utils.arcmin, proj='car')
         return shape, wcs
     
     def make_apod_window(self, shape, wcs, apod_width_deg, map_type='pixell'):
+        """
+        Create an apodization window for a given patch.
+        
+        
+        Parameters
+        ----------
+        shape : tuple of int
+            Shape of the patch array (ny, nx).
+        wcs : WCS
+            World coordinate system.
+        apod_width_deg : float
+            Radius of the apodization taper, in degrees.
+        map_type : str, optional
+            Desired output type: "so_map", "pspy", "pspipe", "pixell", or "enmap". Default "so_map".
+        
+        
+        Returns
+        -------
+        window : so_map or enmap
+            Apodization window array in requested format, with values between 0 and 1.
+        """
+        
         # options for output map format:
         map_type = map_type.lower()
         options = ['so_map', 'pspy', 'pspipe', 'pixell', 'enmap']
@@ -85,6 +184,23 @@ class CMB:
         return window
     
     def make_unlensed_patch(self, theory_path, cmb_seed):
+        """
+        Generate an unlensed CMB patch from CAMB theory.
+        
+        
+        Parameters
+        ----------
+        theory_path : str
+            Path to the CAMB theory power spectrum file (.dat).
+        cmb_seed : int
+            Random seed for reproducibility.
+        
+        
+        Returns
+        -------
+        cmb : so_map
+            Unlensed 3-component (T, Q, U) CMB patch.
+        """
 
         paddedwidth = self.final_width + 2*self.apod_width
         self.logger.info(f"making unlensed CMB sim for {round(self.res,2)}' {round(paddedwidth,2)} x {round(paddedwidth,2)} deg patch with seed = {cmb_seed}")
@@ -96,6 +212,24 @@ class CMB:
     #############################################
 
     def kappa_to_phi(self, kappa_alm, kappa_ainfo=None):
+        """
+        Convert kappa alm to phi alm.
+        
+        
+        Parameters
+        ----------
+        kappa_alm : ndarray
+            Convergence alm array for kappa.
+        kappa_ainfo : optional
+            Alm info object from pixell. Default is None.
+        
+        
+        Returns
+        -------
+        oalm : ndarray
+            Lensing potential alm array.
+        """
+        
         oalm = curvedsky.almxfl(
             alm=kappa_alm,
             lfilter=lambda x: 2. / (x * (x + 1)),
@@ -105,6 +239,28 @@ class CMB:
         return oalm
 
     def save_CMB_alms(self, cmb_unlensed, kappa_map, apodize_for_alms):
+        """
+        Compute spherical harmonic alms for unlensed CMB components and phi.
+        
+        
+        Parameters
+        ----------
+        cmb_unlensed : so_map
+            Unlensed CMB patch (3 components: T, Q, U).
+        kappa_map : so_map
+            Kappa map aligned with the patch.
+        apodize_for_alms : bool
+            Whether to apply apodization before alm computation.
+        
+        
+        Returns
+        -------
+        alms_unlensed : list of ndarray
+            List of alms for T, Q, U.
+        alms_phi : ndarray
+            Phi alms computed from kappa.
+        """
+        
         padded_width = self.final_width + 2*self.apod_width
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, padded_width, height=padded_width)
         if apodize_for_alms:
@@ -130,6 +286,22 @@ class CMB:
         return alms_unlensed, alms_phi
 
     def get_innerPatch(self, patch):
+        """
+        Extract the central region of a patch with the desired final width.
+        
+        
+        Parameters
+        ----------
+        patch : so_map
+            Patch of width larger than self.final_width, at resolution self.new_res.
+        
+        
+        Returns
+        -------
+        inner_patch : so_map
+            Central square patch of side length self.final_width, at resolution self.new_res.
+        """
+        
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
         inner_patch = enmap.project(patch.data, shape, wcs)
         self.logger.info(f"Cut inner patch down to {self.final_width}x{self.final_width}")
@@ -137,6 +309,26 @@ class CMB:
         return self.enmap2pspy(inner_patch)
 
     def do_lensing(self, cmb_unlensed, kappa_map, apodize_for_alms=True):
+        """
+        Lens an unlensed CMB patch using a kappa map.
+        
+        
+        Parameters
+        ----------
+        cmb_unlensed : so_map
+            Unlensed CMB patch (T, Q, U components).
+        kappa_map : so_map
+            Convergence map.
+        apodize_for_alms : bool, optional
+            Whether to apodize maps before computing alms. Default is True.
+        
+        
+        Returns
+        -------
+        cmb : so_map
+            Lensed CMB patch cut to final width.
+        """
+        
         padded_width = self.final_width + 2*self.apod_width
         alms_unlensed, alms_phi = self.save_CMB_alms(cmb_unlensed, kappa_map, apodize_for_alms)
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, padded_width, height=padded_width)
@@ -156,6 +348,28 @@ class CMB:
     def make_lensed_theory(self, HD_kappa_spectrum,
                             ini_file = f'S10_data/bode_almost_wmap5_params_highKeta.ini',
                             lmax = 24000, sim_Lmin_interp = 30):
+        """
+        Compute lensed CMB theory spectra using CAMB and patch kappa power.
+        
+        
+        Parameters
+        ----------
+        HD_kappa_spectrum : dict
+            Dictionary with keys 'cl' and 'l' containing kappa power spectrum and multipoles.
+        ini_file : str, optional
+            Path to CAMB parameter ini file. Default is 'S10_data/bode_almost_wmap5_params_highKeta.ini'.
+        lmax : int, optional
+            Maximum multipole for CAMB outputs. Default is 24000.
+        sim_Lmin_interp : int, optional
+            Minimum multipole above which to use simulation kappa spectrum instead of CAMB theory. Default is 30.
+        
+        
+        Returns
+        -------
+        data : ndarray of shape (lmax+1, 5)
+            Columns: ell, C_ell^TT, C_ell^EE, C_ell^BB, C_ell^TE.
+        """
+        
         # power of the high-resolution kappa sim in 10x10 patch w/ ctr at RA=6, dec=6:
         sim_clkk = HD_kappa_spectrum['cl']
         sim_Lbin = HD_kappa_spectrum['l']

@@ -10,6 +10,12 @@ import camb
 from .power_spectrum import Spectra
 
 class Foregrounds:
+    """
+    A class for generating diffuse and discrete foreground sky patches from full-sky maps,
+    and applying the appropriate catalog fixes for CIB and small-scale extensions for kSZ
+    and lensing convergence.
+    """
+    
     T_CMB = 2.7255e6
     freq_to_conversion = {
         "030": 7.364967e7,
@@ -29,11 +35,31 @@ class Foregrounds:
         350: "350",
         None: "none"
     }
-
-    #############################################
     
     def __init__(self, ra, dec, final_width, apod_width, 
                  new_res, l_max, log_level=logging.INFO):
+        """
+        Initialize a foreground generator.
+        
+        
+        Parameters
+        ----------
+        ra : float
+            Right ascension of the patch center in degrees.
+        dec : float
+            Declination of the patch center in degrees.
+        final_width : float
+            Desired angular width of the final patch in degrees (applies in both RA and DEC).
+        apod_width : float
+            Width of the apodization region applied to patch edges, in degrees.
+        new_res : float
+            Target pixel resolution of final maps, in arcminutes.
+        l_max : int
+            Maximum multipole moment (ℓ) for spherical harmonic transforms.
+        log_level : int, optional
+            Logging verbosity level (default: logging.INFO).
+        """
+        
         self.ra = ra
         self.dec = dec
         self.final_width = final_width
@@ -51,28 +77,28 @@ class Foregrounds:
 
         return None
 
-    ############################################# Diffuse Components
-
     def load_fullsky(self, frequency, data_path,
                      scaling_factor = 1.0, deconvolve_pixel_window = True):    
         """
-        Loads and processess full-sky input at a given frequency.
+        Load and process a full-sky foreground map at a given frequency.
+
     
         Parameters
         ----------
-        frequency : str
-            Frequency label used in pathing (e.g. '090').
+        frequency : int or None
+            Frequency of the foreground (30, 90, 148, 219, 277, 350 GHz), or None for lensing convergence (kappa).
         data_path : str
-            Path to the input full-sky data.
+            Path to the input full-sky HEALPix map file.
         scaling_factor : float, optional
-            Optional multiplicative factor applied to the input map. Default is 1.0.
+            Multiplicative factor applied to the map values. Default is 1.0.
         deconvolve_pixel_window : bool, optional
-            If True, pixel window deconvolution is applied on full-sky data. Default is True
-    
+            If True, deconvolves the pixel window function. Default is True.
+        
+        
         Returns
         -------
         fullsky_map : so_map
-            Final processed full-sky map in units of micro-K.
+            Processed full-sky map in μK.
         """
 
         conversion_factor = self.freq_to_conversion[self.freq_to_freqpath[frequency]]
@@ -94,20 +120,24 @@ class Foregrounds:
         return fullsky_map
 
     def extract_largerPatch_from_fullsky(self, fullsky_map, fullsky_res, lmax_to_extract):
-        """
-        Cuts out patch of sky from full-sky data
-    
+        """"
+        Extract an apodized larger patch from the full-sky map.
+
+        
         Parameters
         ----------
         fullsky_map : so_map
-            Final processed full-sky map in units of micro-K without pixel window convolution.
+            Input full-sky HEALPix map.
         fullsky_res : float
-            Resolution of full-sky map in units of arcmin.
-    
+            Resolution of the full-sky map, in arcminutes.
+        lmax_to_extract : int
+            Maximum multipole used for spherical harmonic extraction.
+        
+        
         Returns
         -------
         apodized_patch : so_map
-            Final patch of sky at resolution fullsky_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width.
+            Square patch centered at (self.ra, self.dec), with width (self.final_width + 2*self.apod_width) in μK, apodized by self.apod_width.
         """
 
         width = self.final_width + 2*self.apod_width
@@ -133,19 +163,21 @@ class Foregrounds:
 
     def upsample_largerPatch(self, apodized_patch_old, fullsky_res):
         """
-        Cuts out patch of sky from full-sky data
-    
+        Upsample an apodized patch to the target resolution.
+        
+        
         Parameters
         ----------
         apodized_patch_old : so_map
-            Patch of sky at resolution fullsky_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width.
+            Input apodized patch at fullsky_res arcminutes per pixel.
         fullsky_res : float
-            Resolution of full-sky map in units of arcmin.
-    
+            Resolution of the input map in arcminutes.
+        
+        
         Returns
         -------
         so_patch_larger_upsampled : so_map
-            Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width.
+            Patch of width (self.final_width + 2*self.apod_width) resampled to self.new_res arcminutes per pixel.
         """
 
         width = self.final_width + 2*self.apod_width
@@ -165,17 +197,19 @@ class Foregrounds:
 
     def convolve_largerPatch_with_pw(self, patch):
         """
-        Convolves apodized patch of sky with pixel window function.
-    
+        Convolve a patch with its pixel window function.
+        
+        
         Parameters
         ----------
         patch : so_map
-            Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width.
-    
+            Input patch at resolution self.new_res.
+        
+        
         Returns
         -------
         pwConvolved_patch : so_map
-            Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width, convolved with pixel window function.
+            Patch convolved with pixel window function.
         """
 
         width = self.final_width + 2*self.apod_width
@@ -192,17 +226,19 @@ class Foregrounds:
 
     def get_innerPatch(self, patch):
         """
-        Cuts out inner patch of desired width from a larger patch of sky.
-    
+        Extract the central region of a patch with the desired final width.
+        
+        
         Parameters
         ----------
         patch : so_map
-            Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width (self.final_width + 2*self.apod_width) apodized on each side by self.apod_width, convolved with pixel window function.
-    
+            Patch of width larger than self.final_width, at resolution self.new_res.
+        
+        
         Returns
         -------
         inner_patch : so_map
-            Final patch of sky at resolution self.new_res centered at self.ra, self.dec of width self.final_width, convolved with pixel window function.
+            Central square patch of side length self.final_width, at resolution self.new_res.
         """
         
 
@@ -214,23 +250,28 @@ class Foregrounds:
 
     def generate_diffuse_foreground(self, component, frequency, fullsky_deconvolved_path = None, S10_largeApodized_path = None, return_Apodized_patch = False):
         """
-        Generates a patch of a diffuse foreground (e.g. tSZ, kappa) at a given frequency.
-    
+        Generate a diffuse foreground patch (tSZ, kSZ, or kappa).
+        
+        
         Parameters
         ----------
         component : str
-            Foreground type ('tSZ', 'kappa', or 'kSZ').
+            Foreground type: "tSZ", "kSZ", or "kappa".
         frequency : int or None
-            Frequency of desired foreground (30, 90, 148, 219, 277, 350) or None for lensing convergence.
-        do_fullsky_part : bool, optional
-            If True, loads and processes full-sky input. Default is False.
-        data_path : str or None
-            Path to the input full-sky data. Can be None if do_fullsky_part is False. Default is None
-    
+            Frequency of foreground (30–350 GHz), or None for kappa (lensing convergence).
+        fullsky_deconvolved_path : str, optional
+            Path to a deconvolved full-sky HEALPix map. Default is None.
+        S10_largeApodized_path : str, optional
+            Path to an S10 patch of width (self.final_width + 2*self.apod_width) apodized by self.apod_width on each side. Default is None.
+        return_Apodized_patch : bool, optional
+            If True, also return the larger apodized patch. Default is False.
+        
+        
         Returns
         -------
-        innerPatch : so_map
-            Final processed diffuse foreground patch at resolution of self.new_res.
+        innerPatch : so_map or (so_map, so_map)
+            If return_Apodized_patch is False, returns the final square patch of width self.final_width degrees at self.new_res resolution.
+            If return_Apodized_patch is True, returns a tuple (largerPatch, innerPatch) of S10 patch of width (self.final_width + 2*self.apod_width) apodized by self.apod_width on each side (able to later be used as the input data in S10_largeApodized_path) and the final square patch of width self.final_width degrees at self.new_res resolution. 
         """
 
         # Specific foreground considerations
@@ -267,9 +308,24 @@ class Foregrounds:
 
         return innerPatch
 
-    ############################################# Discrete Components
-
     def make_catalog(self, data_path, component):
+        """
+        Construct a source catalog for a given component from S10 full-sky catalogs.
+        
+        
+        Parameters
+        ----------
+        data_path : str
+            Directory containing component CSV or binary files from Lambda.
+        component : str
+            Component type: "CIB", "radio", or "SZ".
+        
+        
+        Returns
+        -------
+        catalog : pandas.DataFrame
+            Source catalog containing RA [deg], DEC [deg], and fluxes [mJy] at available frequencies.
+        """
         
         width = self.final_width + 2*self.apod_width
         ra_min = self.ra - width/2
@@ -366,6 +422,25 @@ class Foregrounds:
             return df
 
     def place_sources_in_largerPatch(self, catalog, frequency, scaling_factor):
+        """
+        Place catalog sources into an empty sky patch.
+        
+        
+        Parameters
+        ----------
+        catalog : pandas.DataFrame
+            Table of sources with RA, DEC (degrees), and flux densities [mJy].
+        frequency : int
+            Frequency of interest (30–350 GHz).
+        scaling_factor : float
+            Multiplicative factor applied to flux densities.
+        
+        
+        Returns
+        -------
+        initial_patch : so_map
+            Square patch of width (final_width + 2*apod_width), at self.new_res resolution, containing simulated point sources.
+        """
 
         width = self.final_width + 2*self.apod_width
         ra_min = self.ra - width/2
@@ -411,7 +486,31 @@ class Foregrounds:
         return initial_patch
 
     def generate_discrete_foreground(self, frequency, catalog = None, scaling_factor = 1.0, return_Apodized_patch = False, S10_largeApodized_path = None):
-
+        """
+        Generate a discrete foreground patch from a catalog or file.
+        
+        
+        Parameters
+        ----------
+        frequency : int
+            Frequency of the foreground (30–350 GHz).
+        catalog : pandas.DataFrame, optional
+            Source catalog with RA, DEC, and fluxes. Default is None.
+        scaling_factor : float, optional
+            Multiplicative factor applied to source amplitudes. Default is 1.0.
+        return_Apodized_patch : bool, optional
+            If True, also return the larger apodized patch. Default is False.
+        S10_largeApodized_path : str, optional
+            Path to an S10 patch of width (self.final_width + 2*self.apod_width) apodized by self.apod_width on each side. Default is None.
+        
+        
+        Returns
+        -------
+        innerPatch : so_map or (so_map, so_map)
+            If return_Apodized_patch is False, returns the final square patch of width self.final_width degrees at self.new_res resolution.
+            If return_Apodized_patch is True, returns a tuple (apodized_patch, innerPatch) of S10 patch of width (self.final_width + 2*self.apod_width) apodized by self.apod_width on each side (able to later be used as the input data in S10_largeApodized_path) and the final square patch of width self.final_width degrees at self.new_res resolution. 
+        """
+        
         if catalog != None:
             initial_patch = self.place_sources_in_largerPatch(catalog, frequency, scaling_factor)
     
@@ -440,9 +539,23 @@ class Foregrounds:
 
         return innerPatch
 
-    ############################################# Stitching
-
     def enmap2pspy(self, imap):
+        """
+        Convert a pixell enmap to a pspy so_map.
+        
+        
+        Parameters
+        ----------
+        imap : enmap
+            Input pixell enmap array, with WCS and geometrys.
+        
+        
+        Returns
+        -------
+        omap : so_map
+            Equivalent pspy so_map containing the same data and geometry.
+        """
+        
         if len(imap.shape) > 2:
             ncomp = imap.shape[-3]
         else:
@@ -453,13 +566,27 @@ class Foregrounds:
     
     def get_coord_box(self, ra_ctr, dec_ctr, width, height=None):
         """
-        Returns an array of [[dec_min, ra_max], [dec_max, ra_min]] for a map of
-        shape `width` x `height` (or a square map if the height is not provided),
-        centered at RA, dec = (`ra_ctr`, `dec_ctr`)
-    
-        The `ra_ctr`, `dec_ctr`, `width`, and `height` should be in units of degrees;
-        the returned `coord_box` is in units of radians
+        Compute coordinate box for a square or rectangular patch.
+        
+        
+        Parameters
+        ----------
+        ra_ctr : float
+            Center RA in degrees.
+        dec_ctr : float
+            Center DEC in degrees.
+        width : float
+            Patch width in degrees (RA extent).
+        height : float, optional
+            Patch height in degrees (DEC extent). If None, set equal to width.
+        
+        
+        Returns
+        -------
+        coord_box : ndarray of shape (2, 2)
+            [[dec_min, ra_max], [dec_max, ra_min]] in radians.
         """
+        
         height = width if (height is None) else height
         ra_min = ra_ctr - (width / 2)
         ra_max = ra_ctr + (width / 2)
@@ -469,17 +596,59 @@ class Foregrounds:
         return np.deg2rad(coord_box)
         
     def get_shape_wcs(self, res, ra_ctr, dec_ctr, width, height=None):
-        """Returns the `shape` and `wcs` for a `pixell.enmap.ndmap` of the
-        given resolution and map geometry.
-    
-        `res` should be in units of arcminutes
-        `ra_ctr`, `dec_ctr`, `width`, and `height` should each be in units of degrees
         """
+        Compute shape and WCS for a pixell enmap patch.
+        
+        
+        Parameters
+        ----------
+        res : float
+            Pixel resolution in arcminutes.
+        ra_ctr : float
+            Center RA in degrees.
+        dec_ctr : float
+            Center DEC in degrees.
+        width : float
+            Patch width in degrees.
+        height : float, optional
+            Patch height in degrees. If None, set equal to width.
+        
+        
+        Returns
+        -------
+        shape : tuple of int
+            Shape of the enmap array (ny, nx).
+        wcs : WCS
+            World coordinate system for the patch.
+        """
+        
         coord_box = self.get_coord_box(ra_ctr, dec_ctr, width, height=height)
         shape, wcs = enmap.geometry(pos=coord_box, res=res * utils.arcmin, proj='car')
         return shape, wcs
     
     def make_apod_window(self, shape, wcs, apod_width_deg, map_type='so_map'):
+        """
+        Create an apodization window for a given patch.
+        
+        
+        Parameters
+        ----------
+        shape : tuple of int
+            Shape of the patch array (ny, nx).
+        wcs : WCS
+            World coordinate system.
+        apod_width_deg : float
+            Radius of the apodization taper, in degrees.
+        map_type : str, optional
+            Desired output type: "so_map", "pspy", "pspipe", "pixell", or "enmap". Default "so_map".
+        
+        
+        Returns
+        -------
+        window : so_map or enmap
+            Apodization window array in requested format, with values between 0 and 1.
+        """
+        
         # options for output map format:
         map_type = map_type.lower()
         options = ['so_map', 'pspy', 'pspipe', 'pixell', 'enmap']
@@ -499,35 +668,39 @@ class Foregrounds:
                                       template_ell0_index=3102, patch_ell0_index=15,
                                       seed = 3):
         """
-        Generates the alms for the small-scale extension of particular patch of sky.
-    
+        Fits a template theory spectrum to a patch spectrum and generates theory alms for the new theory spectrum.
+        
+        
         Parameters
         ----------
-        output_path : str
-            Path to the output saved files for the small-scale extension Fourier components.
         template_cls : ndarray
-            Input cls for template theory we want to match.
+            Power spectrum values of the template theory.
         template_ells : ndarray
-            Input ells for template theory we want to match.
+            Multipoles corresponding to template_cls.
         patch_cls : ndarray
-            Input cls for patch theory we want to match.
+            Power spectrum values of the extracted patch.
         patch_ells : ndarray
-            Input ells for patch theory we want to match.
+            Multipoles corresponding to patch_cls.
         template_minimization_index : int
-            The index in template_ells that matches the ell value we want to minimize the distance to
+            Index in template_ells used for normalization. Corresponds to the value of ℓ used to optimize n in Equations 1 and 2.
         patch_minimization_index : int
-            The index in patch_ells that matches the ell value we want to minimize the distance to
-        template_ell0_index : int
-            The index in template_ells that matches ell_0. Default is 3102.
-        patch_ell0_index : int
-            The index in patch_ells that matches ell_0. Default is 15, which corresponds to ell = 3100 assuming delta_ell = 200.
-        seed : int
-            The seed used to generate the alms
-    
+            Index in patch_ells used for normalization. Corresponds to the value of ℓ used to optimize n in Equations 1 and 2.
+        template_ell0_index : int, optional
+            Index in template_ells used for normalization. Corresponds to the value of ℓ_0 used to define A in Equations 1 and 2. Default is 3102.
+        patch_ell0_index : int, optional
+            Index in patch_ells used for normalization. Corresponds to the value of ℓ_0 used to define A in Equations 1 and 2. Default is 15.
+        seed : int, optional
+            Random seed used in alm generation. Default is 3.
+        
+        
         Returns
         -------
         alms_theory : ndarray
-            Final alms for small-scale extension fit to the two ell values provided.
+            Complex spherical harmonic coefficients up to self.l_max.
+        template_ells : ndarray
+            Ells associated with rescaled template power spectrum matching the patch.
+        theory_cls : ndarray
+            Rescaled template power spectrum matching the patch.
         """
             
         self.logger.info(f"Matching template at ell={template_ells[template_minimization_index]} to patch at ell={patch_ells[patch_minimization_index]}")
@@ -563,19 +736,19 @@ class Foregrounds:
 
     def get_S10_for_stitching(self, upsampled_patch):
         """
-        Generates the alms for the S10 patch of sky.
-    
+        Compute alms from an upsampled S10 patch.
+        
+        
         Parameters
         ----------
-        output_path : str
-            Path to the output saved files for the patch Fourier components.
-        upsampled_patch : enmap
-            Input foreground patch of sky
-    
+        upsampled_patch : so_map
+            Input S10 patch at self.new_res arcminutes resolution.
+        
+        
         Returns
         -------
         alms_for_stitching_resized : ndarray
-            Final alms for original patch resized to match desired output.
+            Spherical harmonic coefficients of S10 input patch resized to match self.l_max.
         """
         
         shape, wcs = self.get_shape_wcs(self.new_res, self.ra, self.dec, self.final_width, height=self.final_width)
@@ -595,23 +768,23 @@ class Foregrounds:
 
     def stitch_alms(self, alms_theory, alms_S10, l_cutoff):
         """
-        Combines two sets of alms to generate the desired patch of sky with Fourier components from one until some ell, at which point the Fourier components are from the other set.
-    
+        Stitch two sets of alms into a combined map.
+        
+        
         Parameters
         ----------
         alms_theory : ndarray
-            The Fourier components used at high-ell.
+            Spherical harmonic coefficients containing high-ℓ modes.
         alms_S10 : ndarray
-            The Fourier components used at low-ell.
-        output_path : str
-            Path to save real-space patch coming from both sets of Fourier components.
+            Spherical harmonic coefficients containing low-ℓ modes.
         l_cutoff : int
-            Value of ell beyond which alms_S10 is replaced by values from alms_theory.
-    
+            Multipole cutoff. Modes with ℓ < l_cutoff are taken from alms_S10, while modes with ℓ ≥ l_cutoff are taken from alms_theory.
+        
+        
         Returns
         -------
         patch_map_so : so_map
-            Real-space patch coming from both sets of Fourier components.
+            Real-space square patch of width self.final_width degrees at resolution self.new_res.
         """
             
         self.logger.info(f"Stitching alms")
@@ -630,28 +803,64 @@ class Foregrounds:
     ############################################# CIB
 
     def get_flux2temp_unit_conversion(self, freq):
+        """
+        Get unit conversion factor from Jy/sr to ΔT/T.
+        
+        
+        Parameters
+        ----------
+        freq : int
+            Frequency in GHz.
+        
+        
+        Returns
+        -------
+        factor : float
+            Conversion factor (multiplicative).
+        """
         # divide map in Jy/str by this factor to get in delta T / T units:
         unit_conversions = {30: 7.364967e7, 90: 5.526540e8, 148: 1.072480e9, 219: 1.318837e9, 277: 1.182877e9, 350: 8.247628e8}
         return unit_conversions[freq]
     
-    def uK_to_mJy_per_str(self, x, freq, TCMB=2.7255e6):
-        return (x / TCMB) * self.get_flux2temp_unit_conversion(freq) * 1e3
+    def uK_to_mJy_per_str(self, x, freq):
+        """
+        Convert a map from μK to mJy/sr.
+        
+        
+        Parameters
+        ----------
+        x : ndarray
+            Input map in μK.
+        freq : int
+            Frequency in GHz.
+        
+        
+        Returns
+        -------
+        flux_map : ndarray
+            Map in mJy/sr.
+        """
+        return (x / self.T_CMB) * self.get_flux2temp_unit_conversion(freq) * 1e3
     
     def make_catalog_from_sims(self, sims, sigma_pix_frac=0.2, seed=0):
         """
-        Extracts sources from foreground patch with point sources located at center of pixels
-    
+        Build a source catalog with source positions from a simulated CIB maps.
+        
+        
         Parameters
         ----------
         sims : dict
-            Dictionary of enmaps for each frequency
-        component : str
-            Foreground component
-    
+            Dictionary mapping frequency (GHz) to pixell enmap of sky patch.
+        sigma_pix_frac : float, optional
+            Fraction of pixel size used as Gaussian scatter in source positions. Default is 0.2.
+        seed : int, optional
+            Random seed for reproducibility. Default is 0.
+        
+        
         Returns
         -------
-        catalog : pd.df
-            Source catalog
+        catalog : pandas.DataFrame
+            Source catalog with scattered RA, DEC (degrees) and flux densities (mJy).
         """
         
         width = self.final_width + 2*self.apod_width
@@ -680,27 +889,31 @@ class Foregrounds:
 
     def add_gauss_scatter_to_coords(self, ras, decs, shape, wcs, sigma_pix_frac, seed):
         """
-        Adds scatter to the location of point sources
-    
+        Apply Gaussian scatter to input sky coordinates.
+        
+        
         Parameters
         ----------
-        ras : ndarray
-            RA values of point sources in catalog
-        decs : ndarray
-            DEC values of point sources in catalog
-        shape : 
-            shape for enmap of input resolution and map geometry
-        wcs : 
-            wcs for enmap of input resolution and map geometry
+        ras : ndarray, shape (N,)
+            RA coordinates in degrees (0..360) for N sources.
+        decs : ndarray, shape (N,)
+            Dec coordinates in degrees (-90..90) for N sources.
+        shape : tuple of int
+            Shape of the enmap array (ny, nx).
+        wcs : WCS
+            World coordinate system.
         sigma_pix_frac : float
-            Sigma pixel fraction of normal distribution used to add scatter to point sources
-        seed : int
-            The seed used to perform the scatter
-    
+            Fraction of pixel size used as Gaussian scatter in source positions.
+        seed : int or None
+            Random seed for reproducibility.
+        
+        
         Returns
         -------
-        catalog : pd.df
-            Source catalog
+        random_ras : ndarray, shape (N,)
+            RA coordinates after scatter is implemented (degrees). Same length and ordering as input ras.
+        random_decs : ndarray, shape (N,)
+            Dec coordinates after scatter is implemented (degrees). Same length and ordering as input decs.
         """
         
         # get avg width and height of each pixel
@@ -715,6 +928,34 @@ class Foregrounds:
         return random_ras, random_decs
 
     def get_kappa_theory(self, ini_file = 'S10_data/bode_almost_wmap5_params_highKeta.ini'):
+        """
+        Compute CAMB with high-accuracy settings for unlensed CMB power and lensing potential power spectrum.
+    
+        Parameters
+        ----------
+        ini_file : str, optional
+            Path to a CAMB-style .ini parameter file. Default is 'S10_data/bode_almost_wmap5_params_highKeta.ini'.
+    
+        Returns
+        -------
+        main_data_text : ndarray, shape (N_ell, 10)
+            Table that stacks (per-ℓ) the following columns:
+                [ell,
+                 lensed_TT, lensed_EE, lensed_BB, lensed_TE,
+                 unlensed_TT, unlensed_EE, unlensed_BB, unlensed_TE,
+                 kappa_cl]
+            - `ell` are integer multipoles (0..N-1).
+            - lensed_* and unlensed_* are CAMB Cl arrays (units: μK²).
+            - `kappa_cl` is the κ-κ power spectrum computed from the lensing potential
+              (dimensionless), computed as (ℓ(ℓ+1))^2 * C_ψψ(ℓ) / 4.
+    
+        main_data_dat : ndarray, shape (N_ell, 5)
+            Table for commonly-plotted D_ell quantities:
+                [ell,
+                 D_ell_unlensed_TT, D_ell_unlensed_EE, D_ell_unlensed_BB, D_ell_unlensed_TE]
+            where D_ell = ℓ(ℓ+1) C_ell / (2π). Units are μK².
+        """
+        
         pars = camb.read_ini(ini_file)
         # high-accuracy settings
         pars.set_matter_power(kmax=10, k_per_logint=130)
@@ -752,6 +993,41 @@ class Foregrounds:
         return main_data_text, main_data_dat
 
     def extend_to_small_scales(self, S10_patch, patch_type, template_ells, template_cls, mbb_inv, binning_file, spectra_apod_width=1.0, spectra_final_width=10.0):
+        """
+        Extend an S10-scale patch to higher-resolution small-scale modes using a template theory.
+    
+        Parameters
+        ----------
+        S10_patch : enmap
+            The original S10 patch to be extended.
+        patch_type : str
+            Type of patch to extend. Determines which indices, deconvolution flags and ℓ-cutoffs are used:
+              - 'kappa'  : uses template_minimization_index=3902, patch_minimization_index=19, l_cutoff=4000
+              - 'kSZ'    : uses template_minimization_index=8102, patch_minimization_index=40, l_cutoff=8000
+        template_ells : ndarray
+            Multipoles corresponding to the high-resolution template spectrum.
+        template_cls : ndarray
+            High-resolution template power spectrum values to be matched
+        mbb_inv : array-like
+            Inverse of the mode-coupling / binning matrix for deconvolving binned estimates.
+        binning_file : str
+            Path to a binning specification file.
+        spectra_apod_width : float, optional
+            Apodization radius (degrees) to use when computing power spectra for the S10 patch. Default is 1.0.
+        spectra_final_width : float, optional
+            Angular width (degrees) used when computing S10 spectra. Default is 10.0 deg.
+    
+        Returns
+        -------
+        HD_patch : so_map
+            The stitched, high-resolution patch at self.new_res with width self.final_width.
+        dict : dictionary with keys:
+            'l' : ndarray
+                Multipoles of the matched small-scale theory.
+            'cl': ndarray
+                The matched theory Cl values.
+        """
+            
         spectra_HD = Spectra(
             ra = self.ra,
             dec = self.dec,
@@ -791,6 +1067,26 @@ class Foregrounds:
             return HD_kSZ_patch_extended, {"l": smallScale_kSZ_ells, "cl": smallScale_kSZ_cls}
 
     def place_CIB_sources_in_largerPatch(self, catalog, frequency, scaling_factor, CIB_resolution):
+        """
+        Place CIB source catalog entries into a CAR patch at a specified resolution, based on CIB model.
+    
+        Parameters
+        ----------
+        catalog : pandas.DataFrame
+            Catalog containing at least columns ['ra_deg', 'dec_deg', '<freq>GHz_flux'], with flux in mJy.
+        frequency : int
+            Frequency in GHz (e.g. 30, 90, 148, 219, 277, 350).
+        scaling_factor : float
+            Multiplicative scaling applied to the map after placing sources.
+        CIB_resolution : float
+            Pixel resolution used to place patches in CAR patch.
+    
+        Returns
+        -------
+        initial_patch : so_map
+            The sky patch at CIB_resolution of width (self.final_width + 2*self.apod_width) in μK units for the given frequency.
+        """
+        
         width = self.final_width + 2*self.apod_width
         ra_min = self.ra - width/2
         ra_max = self.ra + width/2
@@ -835,7 +1131,30 @@ class Foregrounds:
         return initial_patch
 
     def make_CIB_model_catalog(self, CIB_model, CIB_catalog_original, frequencies=[30,90,148,219,277,350], sigma_pix_frac=0.2, seed=0):
+        """
+        Build a CIB source catalog by placing model sources at a chosen resolution and extracting fluxes.
     
+        Parameters
+        ----------
+        CIB_model : int
+            Model index (1 or 2) selecting the resolution for source placement:
+              - 1 : HEALPix-based placement using nside=8192 resolution
+              - 2 : high-resolution grid with 0.25 arcmin pixels
+        CIB_catalog_original : pandas.DataFrame
+            Input catalog of CIB sources (should contain ra_deg, dec_deg, and '<freq>GHz_flux' in mJy).
+        frequencies : list of int, optional
+            List of frequencies (GHz) to include in the generated sims and final catalog. Default is [30, 90, 148, 219, 277, 350].
+        sigma_pix_frac : float, optional
+            Fraction of pixel size used as Gaussian scatter in source positions. Default 0.2.
+        seed : int, optional
+            Random seed for reproducibility. Default 0.
+    
+        Returns
+        -------
+        CIB_catalog : pandas.DataFrame
+            Catalog DataFrame of extracted sources with columns ['ra_deg', 'dec_deg', '30GHz_flux', '90GHz_flux', ...], with flux in mJy.
+        """
+        
         CIB_resolutions = [hp.nside2resol(8192, arcmin=True), 0.25]
         
         CIB_sim = {

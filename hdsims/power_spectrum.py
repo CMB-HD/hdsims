@@ -8,8 +8,36 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
 class Spectra:
+    """
+    Utilities for computing power spectra (Cls/Dls) from CAR patches using
+    pspy and pixell. Provides window creation, binning/mode-coupling file
+    generation, and wrappers to compute foreground and CMB power spectra.
+    """
+    
     def __init__(self, ra, dec, final_width, apod_width, 
                  res, l_max, log_level=logging.INFO):
+        """
+        Initialize a spectra object.
+        
+        
+        Parameters
+        ----------
+        ra : float
+            Right ascension of the patch center in degrees.
+        dec : float
+            Declination of the patch center in degrees.
+        final_width : float
+            Desired angular width of the final patch in degrees (applies in both RA and DEC).
+        apod_width : float
+            Width of the apodization region applied to patch edges, in degrees.
+        res : float
+            Pixel resolution of final maps, in arcminutes.
+        l_max : int
+            Maximum multipole moment (ℓ) for spherical harmonic transforms.
+        log_level : int, optional
+            Logging verbosity level (default: logging.INFO).
+        """
+        
         self.ra = ra
         self.dec = dec
         self.final_width = final_width
@@ -28,12 +56,41 @@ class Spectra:
         return None
 
     def save_sparse_thresholded(self, filename, mat, tol=1e-12):
+        """
+        Save a dense matrix as a sparse CSR file after thresholding small values.
+        
+        
+        Parameters
+        ----------
+        filename : str
+            Destination path for the saved sparse matrix (.npz will be written).
+        mat : ndarray or sparse matrix-like
+            Dense 2D array (or object convertible to CSR) to threshold and save.
+        tol : float, optional
+            Absolute threshold: any entry with absolute value < tol will be set to zero. Default 1e-12.
+        """
         M = sp.csr_matrix(mat)
         M.data[np.abs(M.data) < tol] = 0.0
         M.eliminate_zeros() 
         sp.save_npz(filename, M)
 
     def enmap2pspy(self, imap):
+        """
+        Convert a pixell enmap to a pspy so_map.
+        
+        
+        Parameters
+        ----------
+        imap : enmap
+            Input pixell enmap array, with WCS and geometrys.
+        
+        
+        Returns
+        -------
+        omap : so_map
+            Equivalent pspy so_map containing the same data and geometry.
+        """
+        
         if len(imap.shape) > 2:
             ncomp = imap.shape[-3]
         else:
@@ -44,13 +101,27 @@ class Spectra:
     
     def get_coord_box(self, ra_ctr, dec_ctr, width, height=None):
         """
-        Returns an array of [[dec_min, ra_max], [dec_max, ra_min]] for a map of
-        shape `width` x `height` (or a square map if the height is not provided),
-        centered at RA, dec = (`ra_ctr`, `dec_ctr`)
-    
-        The `ra_ctr`, `dec_ctr`, `width`, and `height` should be in units of degrees;
-        the returned `coord_box` is in units of radians
+        Compute coordinate box for a square or rectangular patch.
+        
+        
+        Parameters
+        ----------
+        ra_ctr : float
+            Center RA in degrees.
+        dec_ctr : float
+            Center DEC in degrees.
+        width : float
+            Patch width in degrees (RA extent).
+        height : float, optional
+            Patch height in degrees (DEC extent). If None, set equal to width.
+        
+        
+        Returns
+        -------
+        coord_box : ndarray of shape (2, 2)
+            [[dec_min, ra_max], [dec_max, ra_min]] in radians.
         """
+        
         height = width if (height is None) else height
         ra_min = ra_ctr - (width / 2)
         ra_max = ra_ctr + (width / 2)
@@ -60,17 +131,59 @@ class Spectra:
         return np.deg2rad(coord_box)
         
     def get_shape_wcs(self, res, ra_ctr, dec_ctr, width, height=None):
-        """Returns the `shape` and `wcs` for a `pixell.enmap.ndmap` of the
-        given resolution and map geometry.
-    
-        `res` should be in units of arcminutes
-        `ra_ctr`, `dec_ctr`, `width`, and `height` should each be in units of degrees
         """
+        Compute shape and WCS for a pixell enmap patch.
+        
+        
+        Parameters
+        ----------
+        res : float
+            Pixel resolution in arcminutes.
+        ra_ctr : float
+            Center RA in degrees.
+        dec_ctr : float
+            Center DEC in degrees.
+        width : float
+            Patch width in degrees.
+        height : float, optional
+            Patch height in degrees. If None, set equal to width.
+        
+        
+        Returns
+        -------
+        shape : tuple of int
+            Shape of the enmap array (ny, nx).
+        wcs : WCS
+            World coordinate system for the patch.
+        """
+        
         coord_box = self.get_coord_box(ra_ctr, dec_ctr, width, height=height)
         shape, wcs = enmap.geometry(pos=coord_box, res=res * utils.arcmin, proj='car')
         return shape, wcs
     
     def make_apod_window(self, shape, wcs, apod_width_deg, map_type='so_map'):
+        """
+        Create an apodization window for a given patch.
+        
+        
+        Parameters
+        ----------
+        shape : tuple of int
+            Shape of the patch array (ny, nx).
+        wcs : WCS
+            World coordinate system.
+        apod_width_deg : float
+            Radius of the apodization taper, in degrees.
+        map_type : str, optional
+            Desired output type: "so_map", "pspy", "pspipe", "pixell", or "enmap". Default "so_map".
+        
+        
+        Returns
+        -------
+        window : so_map or enmap
+            Apodization window array in requested format, with values between 0 and 1.
+        """
+        
         # options for output map format:
         map_type = map_type.lower()
         options = ['so_map', 'pspy', 'pspipe', 'pixell', 'enmap']
@@ -87,18 +200,28 @@ class Spectra:
     
     def make_binning_files(self, binning_output_path, delta_ell = 200, spin0and2 = False, type_Cl = False, pre_existing_binning_edges = None, saveBblSparsely = True):
         """
-        Generates mode decoupling matrix and binning files for a chosen patch and resolution.
-    
+        Create and save binning files and mode-coupling matrices for the patch.
+        
+        
         Parameters
         ----------
         binning_output_path : str
-            Path to save binning files to
-        delta_ell : int
-            Desired bin width in final power spectra. Default 200
+            Directory to write binning and MCM/Bbl files.
+        delta_ell : int, optional
+            Desired multipole bin width. Default is 200.
         spin0and2 : bool, optional
-            If True, makes binning files for spin0and2 patch of sky (i.e. CMB T,Q,U maps). Default False
+            If True, treat the patch as a spin0+spin2 (T,Q,U) patch and create the corresponding multi-component MCM. Default False.
         type_Cl : bool, optional
-            If True, makes binning files for Cl rather than Dl. Default False
+            If True, create files configured for Cl (rather than Dl) conventions.
+        pre_existing_binning_edges : str or None, optional
+            Path to a file with custom bin edges. If provided, that binning will be used instead of creating new equal-width bins.
+        saveBblSparsely : bool, optional
+            If True, save Bbl matrices in sparse (.npz) format. Default is True.
+        
+        
+        Returns
+        -------
+        None
         """
         
         try:
@@ -177,19 +300,34 @@ class Spectra:
 
     def get_binning_files(self, path, delta_ell = 200, spin0and2 = False, type_Cl = False, sparseBbl = True):
         """
-        Returns mode decoupling matrix and binning files for use in power spectra.
-    
+        Load mbb_inv and Bbl binning/mode-coupling files previously generated by
+        make_binning_files.
+        
+        
         Parameters
         ----------
         path : str
-            Path with binning files
-        delta_ell : int
-            Desired bin width in final power spectra. Default 200
+            Directory containing the files.
+        delta_ell : int, optional
+            Bin width used when the files were produced. Default is 200.
         spin0and2 : bool, optional
-            If True, finds binning files for spin0and2 patch of sky (i.e. CMB T,Q,U maps). Default False
+            Whether the saved files are for spin0+spin2 analysis. Default is False.
         type_Cl : bool, optional
-            If True, finds binning files for Cl rather than Dl. Default False
+            Whether the files correspond to Cl conventions (True) or Dl (False). Default is False.
+        sparseBbl : bool, optional
+            If True, attempts to load Bbl matrices saved in sparse .npz format. Default is True
+        
+        
+        Returns
+        -------
+        mbb_inv : ndarray
+            Inverse mode-coupling matrix (mbb_inv) as an ndarray.
+        binning_file : str
+            Path to the binning file that should be used.
+        Bbl : ndarray or dict
+            Bbl matrix or dictionary of component-wise Bbl matrices for spin0and2.
         """
+        
         if spin0and2:
             if type_Cl:
                 mbb_inv = np.load(f"{path}mbb_inv_lmax{self.l_max}_deltaEll{delta_ell}_{self.ra},{self.dec}_{self.final_width}_{self.apod_width}_{self.res}_spin0and2_Cl.npy", allow_pickle=True)
@@ -232,20 +370,29 @@ class Spectra:
 
     def get_foreground_power(self, patch, mbb_inv, binning_file, deconvolve_pw = True, type_Cl = False, give_raw_power = False):
         """
-        Saves power spectrum of foreground (spin0) patch.
-    
+        Compute and return a binned power spectrum for a spin-0 foreground patch.
+        
+        
         Parameters
         ----------
-        patch : enmap
-            Foreground patch
-        binning_output_path : str
-            Path to binning file
-        mbb_inv : numpy.ndarray
-            Mode decoupling matrix as ndarray
-        deconvolve_pw : bool
-            If True, deconvolves foreground patch before taking power. Default True
+        patch : so_map
+            Input patch containing the foreground signal to analyze.
+        mbb_inv : ndarray
+            Inverse mode coupling (mbb_inv) matrix for the patch/binning.
+        binning_file : str
+            Path to the binning definition file used for so_spectra.bin_spectra.
+        deconvolve_pw : bool, optional
+            If True, unapplies/removes the pixel-window effect before computing alms. is Default True.
         type_Cl : bool, optional
-            If True, solves for spectra in terms of Cl rather than Dl. Default False
+            If True, return binned Cl values; otherwise return Dl (ℓ(ℓ+1)C_ℓ/2π). Default is False (return Dl).
+        give_raw_power : bool, optional
+            If True, return raw (unbinned) power and ell arrays as produced by so_spectra.get_spectra. Default is False.
+        
+        
+        Returns
+        -------
+        (patch_dls, patch_ells) or (patch_cls, patch_ells) or (power_patch, ell_patch)
+            Depending on flags: binned Dl or Cl and corresponding bin centers, or raw spectra if requested.
         """
         
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width, height=self.final_width)
@@ -274,6 +421,33 @@ class Spectra:
             return patch_dls, patch_ells
 
     def get_CMB_power(self, cmb, mbb_inv, binning_file, deconvolve_pw = False, spectra = ["TT", "TE", "TB", "ET", "BT", "EE", "EB", "BE", "BB"], apodize=True):
+        """
+        Compute polarization and temperature power spectra for CMB T/Q/U maps (spin-0 and spin-2 fields) and return the binned Db matrix.
+        
+        
+        Parameters
+        ----------
+        cmb : so_map
+            Input CMB map with three components arranged as [T, Q, U].
+        mbb_inv : ndarray
+            Inverse mode coupling matrix for binning/deconvolution.
+        binning_file : str
+            Path to the binning file used by so_spectra.bin_spectra.
+        deconvolve_pw : bool, optional
+            If True, unapplies pixel-window effects from each component before computing alms. Default is False.
+        spectra : list of str, optional
+            List of spectrum labels to compute (default includes all 9 TT/TE/.../BB combinations).
+        apodize : bool, optional
+            If True, multiply each component by the apodization window before alms. Default is True.
+        
+        
+        Returns
+        -------
+        Db : ndarray
+            Binned Dl matrix for requested spectra.
+        ellb : ndarray
+            Bin centers corresponding to rows/columns of `Db`.
+        """
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, self.final_width)
         window = self.make_apod_window(shape, wcs, self.apod_width, map_type='pixell')
         window_ones = self.enmap2pspy(enmap.ones(shape, wcs))
