@@ -511,7 +511,7 @@ class Foregrounds:
             If return_Apodized_patch is True, returns a tuple (apodized_patch, innerPatch) of S10 patch of width (self.final_width + 2*self.apod_width) apodized by self.apod_width on each side (able to later be used as the input data in S10_largeApodized_path) and the final square patch of width self.final_width degrees at self.new_res resolution. 
         """
         
-        if catalog != None:
+        if catalog is not None and not catalog.empty:
             initial_patch = self.place_sources_in_largerPatch(catalog, frequency, scaling_factor)
     
             width = self.final_width + 2*self.apod_width
