@@ -308,9 +308,61 @@ class CMB:
         
         return self.enmap2pspy(inner_patch)
 
-    def do_lensing(self, cmb_unlensed, kappa_map, apodize_for_alms=True):
+    def do_lensing(self, cmb_unlensed, kappa_map, lensing_function_type = 'curved', apodize_for_alms=True):
         """
         Lens an unlensed CMB patch using a kappa map.
+        
+        
+        Parameters
+        ----------
+        cmb_unlensed : so_map
+            Unlensed CMB patch (T, Q, U components).
+        kappa_map : so_map
+            Convergence map.
+        lensing_function_type : str, optional
+            Specifies which lensing function to use: lens_map_curved (with 'curved'), lens_map (with 'general'), or lens_map_flat (with 'flat'). Default is 'curved'.
+        apodize_for_alms : bool, optional
+            Whether to apodize maps before computing alms. Default is True.
+        
+        
+        Returns
+        -------
+        cmb : so_map
+            Lensed CMB patch cut to final width.
+        """
+        if lensing_function_type == 'curved':
+            padded_width = self.final_width + 2*self.apod_width
+            alms_unlensed, alms_phi = self.save_CMB_alms(cmb_unlensed, kappa_map, apodize_for_alms)
+            shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, padded_width, height=padded_width)
+    
+            cmb = so_map.car_template(3, self.ra-padded_width/2, self.ra+padded_width/2, self.dec-padded_width/2, self.dec+padded_width/2, self.res)
+            for type_unlensed in [0,1,2]:
+                self.logger.info(f"Lensing CMB-{type_unlensed} map")
+                lensed_map = enmap.ones(shape, wcs)
+                lensed_map.data *= lensing.lens_map_curved(shape, wcs, alms_phi, alms_unlensed[type_unlensed])[0]
+                self.logger.info(f"Did Lensing")
+                lensed_map = enmap.apply_window(lensed_map)
+                self.logger.info(f"Convolved")
+                cmb.data[type_unlensed] = lensed_map.copy()
+    
+            return self.get_innerPatch(cmb)
+        else:
+            return self.do_lensing_other(cmb_unlensed = cmb_unlensed, kappa_map = kappa_map, lensing_function_type = lensing_function_type, apodize_for_alms=apodize_for_alms)
+
+    def map_kappa_to_phi(self, so_kappa_map):
+        shape, wcs = so_kappa_map.data.shape, so_kappa_map.data.wcs
+        kappa_fft = enmap.fft(so_kappa_map.data)
+        L = enmap.modlmap(shape, wcs)
+        L_safe = np.where(L == 0, 1, L)
+        
+        phi_fft = 2 * kappa_fft / L_safe**2
+        phi_map = enmap.ifft(phi_fft).real
+        
+        return phi_map
+
+    def do_lensing_other(self, cmb_unlensed, kappa_map, lensing_function_type = 'general', apodize_for_alms=True):
+        """
+        Lens an unlensed CMB patch using a kappa map, using another method than the curved lensing.
         
         
         Parameters
@@ -330,14 +382,18 @@ class CMB:
         """
         
         padded_width = self.final_width + 2*self.apod_width
-        alms_unlensed, alms_phi = self.save_CMB_alms(cmb_unlensed, kappa_map, apodize_for_alms)
         shape, wcs = self.get_shape_wcs(self.res, self.ra, self.dec, padded_width, height=padded_width)
+        phi_enmap = self.map_kappa_to_phi(kappa_map)
 
         cmb = so_map.car_template(3, self.ra-padded_width/2, self.ra+padded_width/2, self.dec-padded_width/2, self.dec+padded_width/2, self.res)
         for type_unlensed in [0,1,2]:
             self.logger.info(f"Lensing CMB-{type_unlensed} map")
             lensed_map = enmap.ones(shape, wcs)
-            lensed_map.data *= lensing.lens_map_curved(shape, wcs, alms_phi, alms_unlensed[type_unlensed])[0]
+            if lensing_function_type == 'flat':
+                lensed_map.data *= lensing.lens_map_flat(np.tile(cmb_unlensed.data[type_unlensed], (1, 1, 1)), phi_enmap)[0]
+            elif lensing_function_type == 'general':
+                gradphi_enmap = enmap.grad(phi_enmap)
+                lensed_map.data *= lensing.lens_map(np.tile(cmb_unlensed.data[type_unlensed], (1, 1, 1)), gradphi_enmap)[0]
             self.logger.info(f"Did Lensing")
             lensed_map = enmap.apply_window(lensed_map)
             self.logger.info(f"Convolved")
