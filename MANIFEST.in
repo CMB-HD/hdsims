@@ -1,0 +1,2 @@
+recursive-include hdsims/hdsims_data *
+recursive-include hdsims/precomputed_hdsims_output *
