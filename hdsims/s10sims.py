@@ -740,7 +740,7 @@ class S10Sims(lowres_sims.LowResSims):
         kwargs = self.get_kwargs_with_defaults(defaults=defaults, **kwargs)
         component = simutils.validate_sim_component_name(component, valid_components=si.s10_sim_components)
         fname = simutils.get_apod_window_fname(kwargs['apod_width'], kwargs['width'], kwargs['height'], 
-                                               sim_dir=self.intermediate_maps_dir())
+                                               maps_dir=self.intermediate_maps_dir())
         if component == 'kappa':
             fname = fname.replace('.fits', '_s10kappa.fits')
         else:
