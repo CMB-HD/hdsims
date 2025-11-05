@@ -64,7 +64,7 @@ where `/path/to/myS10sims` is the path to the directory where you would like to 
 
 ## How to download the public HD sims from LAMBDA
 
-We provide a command-line script to download the HD simulations we provide on **[TODO:LINK2LAMBDA]()** for a 10$^\circ$ $\times$ 10$^\circ$ patch of sky. If you would like to download these simulations, from the `hdsims` directory (i.e., the directory where this readme file is located), run the command
+We provide a command-line script to download the HD simulations we provide on **[TODO:LINK2LAMBDA]()** for a $10^\circ \times 10^\circ$ patch of sky. If you would like to download these simulations, from the `hdsims` directory (i.e., the directory where this readme file is located), run the command
 
 
 ```
