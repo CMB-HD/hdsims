@@ -13,7 +13,7 @@ args = parser.parse_args()
 log = utils.get_logger(name='example', fmt="{message:s}") # use logging to print out messages as they are logged
 simlib = hdsims.HDSims(args.hd_sims_dir, lowres_sims_dir=args.lowres_sims_dir, verbose=True, log=log) 
 # run everything and reproduce figures:
-simlib.generate_and_powerspectra_hd_sims(save_intermediate_maps=True, save_intermediate_map_power=True, make_plots=True, plot_fdiff=True, use_fig3_settings=True)
+simlib.generate_hd_sims_and_calculate_powerspectra(save_intermediate_maps=True, save_intermediate_map_power=True, make_plots=True, plot_fdiff=True, use_fig3_settings=True)
 
 
 

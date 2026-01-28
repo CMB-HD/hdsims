@@ -69,6 +69,6 @@ if args.cmb:
 
 if args.all:
     # generate the sims and take their power, but make the plots later in the example notebook
-    simlib.generate_and_powerspectra_hd_sims(save_intermediate_maps=True, save_intermediate_map_power=True, make_plots=False)
+    simlib.generate_hd_sims_and_calculate_powerspectra(save_intermediate_maps=True, save_intermediate_map_power=True, make_plots=False)
 
 

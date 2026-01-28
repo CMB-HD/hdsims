@@ -1414,13 +1414,13 @@ class Sims:
         if ('shape' in kwargs) and ('wcs' in kwargs): 
             # compare the `shape` and `wcs` to our patch:
             if not maps.map_geometry_is_equal(kwargs['shape'], kwargs['wcs'], self.shape, self.wcs):
-                ra_ctr, dec_ctr, width, height = maps.get_map_ctr_extent(shape, wcs)
+                ra_ctr, dec_ctr, width, height = maps.get_map_ctr_extent(kwargs['shape'], kwargs['wcs'])
                 # compare center R.A. and dec with our patch (rounded 
                 # to 2 digits, because that's what's used in filenames):
                 ra_ctr = round(ra_ctr, 2) 
                 dec_ctr = round(dec_ctr, 2)
                 if not (np.isclose(ra_ctr, self.ra_ctr) and (dec_ctr, self.dec_ctr)):
-                    patch_info_list.append(f'ra{round_str(ra_ctr)}dec{round_str(dec)}')
+                    patch_info_list.append(f'ra{round_str(ra_ctr)}dec{round_str(dec_ctr)}')
                 # compare (rounded) width and height to our patch:
                 width = round(width, 2)
                 height = round(height, 2)

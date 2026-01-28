@@ -227,11 +227,11 @@ class HDSims(hdsims_plots.HDSimsPlots):
                          verbose=verbose, log=log, make_output_dirs=make_output_dirs, **kwargs)
     
     
-    def generate_and_powerspectra_hd_sims(self, save_total_cmb_fg_sims=True, 
-                                          save_intermediate_maps=False, 
-                                          save_intermediate_map_power=False,
-                                          make_plots=False, save_plots=True, show_plots=True, 
-                                          freqs_for_map_plots=[90, 148], **kwargs):
+    def generate_hd_sims_and_calculate_powerspectra(self, save_total_cmb_fg_sims=True, 
+                                                    save_intermediate_maps=False, 
+                                                    save_intermediate_map_power=False,
+                                                    make_plots=False, save_plots=True, show_plots=True, 
+                                                    freqs_for_map_plots=[90, 148], **kwargs):
         """Generate the ultrahigh-resolution simulations on a patch of the
         sky and calculate their power spectra.
         
@@ -305,7 +305,7 @@ class HDSims(hdsims_plots.HDSimsPlots):
             either `30`, `90`, `148`, `219`, `277`, or `350` GHz. 
         **kwargs : dict
             Keyword arguments passed to the `generate_hd_sims` and
-            `powerspectra_hd_sims` methods, and, if `make_plots=True`,
+            `calculate_hd_sims_powerspectra` methods, and, if `make_plots=True`,
             to the `plot_sim_maps`, `plot_sim_spectra_comparison`, and
             `plot_smallscale_ksz_kappa_spectra` methods. 
             
@@ -339,7 +339,7 @@ class HDSims(hdsims_plots.HDSimsPlots):
         See Also
         --------
         generate_hd_sims : Generate the simulations
-        powerspectra_hd_sims : Calculate the power spectra of the 
+        calculate_hd_sims_powerspectra : Calculate the power spectra of the 
                                simulations.
         get_catalog : The SZ, CIB, and radio catalogs.
         get_sim_theory : The kSZ, lensing convergence, lensed CMB, and
@@ -390,7 +390,7 @@ class HDSims(hdsims_plots.HDSimsPlots):
 
         # take their power:
         save_intermediate_map_power = True if make_plots else save_intermediate_map_power
-        self.powerspectra_hd_sims(save_intermediate_map_power=save_intermediate_map_power, 
+        self.calculate_hd_sims_powerspectra(save_intermediate_map_power=save_intermediate_map_power, 
                                   save_intermediate_maps=save_intermediate_maps,  **kwargs)
         
         # plots:

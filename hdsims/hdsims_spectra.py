@@ -538,6 +538,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
                                                         binning_matrix=False, **kwargs)
             if (not has_pol) and ('spin0xspin0' in mbb_inv_dict['dl']):
                 mbb_inv_dict['dl'] = mbb_inv_dict['dl']['spin0xspin0']
+        imap = enmap.project(imap.copy(), self.shape, self.wcs)
         sim_power = simpower.calc_sim_power(imap, window, lmax, self.binning_file(), mbb_inv_dict,
                                             bin_cl=bin_cl, bin_dl=bin_dl, deconvolve_pixwin=pixwin)
         return sim_power
@@ -1924,7 +1925,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
 
 
 
-    def powerspectra_hd_sims(self, save_intermediate_map_power=False, save_intermediate_maps=False,  **kwargs):
+    def calculate_hd_sims_powerspectra(self, save_intermediate_map_power=False, save_intermediate_maps=False,  **kwargs):
         """Calculate the power spectra of the ultrahigh-resolution
         signal-only simulations.
 

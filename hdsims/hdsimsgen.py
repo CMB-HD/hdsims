@@ -895,20 +895,21 @@ class HDSimsGen(s10sims.S10Sims):
         --------
         apodize_map : Apodize a map.
         """
+        # if apod width wasn't passed, use the size of the window to 
+        # choose the apod width: if window is for inner region of map,
+        # assume it's being used before taking power spectra, so use
+        # the full `apod_width`; otherwise, use the `map_apod_width`:
+        kwargs = self.get_kwargs_with_defaults(defaults={'apod_width': None}, **kwargs)
+        if kwargs['apod_width'] is None:
+            if maps.map_shape_is_equal(kwargs['shape'], self.shape):
+                kwargs['apod_width'] = self.apod_width
+            else:
+                kwargs['apod_width'] = self.map_apod_width
+        # try to load the window before calculating it:
         fname = self.get_apod_window_fname(**kwargs)
         if os.path.exists(fname):
             window = enmap.read_map(fname)
         else:
-            # if apod width wasn't passed, use the size of the window to 
-            # choose the apod width: if window is for inner region of map,
-            # assume it's being used before taking power spectra, so use
-            # the full `apod_width`; otherwise, use the `map_apod_width`:
-            kwargs = self.get_kwargs_with_defaults(defaults={'apod_width': None}, **kwargs)
-            if kwargs['apod_width'] is None:
-                if maps.map_shape_is_equal(kwargs['shape'], self.shape):
-                    kwargs['apod_width'] = self.apod_width
-                else:
-                    kwargs['apod_width'] = self.map_apod_width
             self.infomsg(f"making window for a {round(kwargs['width'],2)} deg. x {round(kwargs['height'],2)} deg. map")
             t = time.time()
             window = maps.make_apod_window(kwargs['shape'], kwargs['wcs'], kwargs['apod_width'])
