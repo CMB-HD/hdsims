@@ -349,7 +349,7 @@ def bin_theory(theory_dict, binning_matrix, bin_edges, bin_dl=False, lmax=None):
     return binned_theory_dict
 
 
-def calc_mode_coupling(window, lmax, binning_file, bin_dl=False, beam_fwhm=None, pol=True, **kwargs):
+def calc_mode_coupling(window, lmax, binning_file, bin_dl=False, beam_fwhm=None, pol=True, pol_window=None, **kwargs):
     """Calculate the inverse mode-coupling and corresponding binning 
     matrices.
     
@@ -375,6 +375,13 @@ def calc_mode_coupling(window, lmax, binning_file, bin_dl=False, beam_fwhm=None,
         If `pol=True`, inverse mode-coupling matrices and binning matrices
         are calculated for temperature and polarization power spectra. 
         Otherwise, polarization is not included.
+    pol_window : pixell.enmap.ndmap, optional
+        The apodization window applied to the polarization maps before 
+        calculating their power spectra. By default, the same `window` is
+        applied to each map (T, Q, and U). If `pol=True` and a 
+        `pol_window` is passed, the `window` is only applied to the 
+        temperature map, and the `pol_window` will be applied to the 
+        polarization maps. Ignored if `pol=False`.
     
     Returns
     -------
@@ -413,7 +420,11 @@ def calc_mode_coupling(window, lmax, binning_file, bin_dl=False, beam_fwhm=None,
     if 'niter' not in kwargs:
         kwargs['niter'] = 0
     if pol:
-        mbb_inv, bbl = so_mcm.mcm_and_bbl_spin0and2((window, window), binning_file, **kwargs)
+        if pol_window is None:
+            pol_window = window
+        else:
+            pol_window = maps.enmap2pspy(pol_window.copy())
+        mbb_inv, bbl = so_mcm.mcm_and_bbl_spin0and2((window, pol_window), binning_file, **kwargs)
     else:
         mbb_inv, bbl = so_mcm.mcm_and_bbl_spin0(window, binning_file, **kwargs)
     return mbb_inv, bbl
