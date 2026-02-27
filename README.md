@@ -14,6 +14,24 @@ The `hdsims` code we provide here can be used to produce:
 We also provide examples that can reproduce the [HD simulations (TODO: link to HD sims on LAMBDA)](https://lambda.gsfc.nasa.gov) that we have released and Figures 2, 3, and 4 of [TODO:link to paper](https://arxiv.org/).
 
 
+---
+
+## Overview of `hdsims`
+
+
+**Main task**: generate 100 square degree ultrahigh-resolution microwave sky simulations and take their power spectra. 
+- To do this, run the `examples/reproduce_10x10.ipynb` notebook (see the "Examples" section below for further details). This notebook will:
+  - Download the lower-resolution S10 simulations;
+  - Make a 100 square degree higher-resolution counterpart from that;
+  - Take the power spectra of the high-resolution simulations;
+  - Make and save the resulting plots.
+
+
+**Helpful quick-start example**: generate 4 square degree versions of the ultrahigh-resolution microwave sky simulations, with the option to skip computationally-intensive steps.
+- To do this, run the `examples/example_2x2.ipynb` notebook  (see the "Examples" section below for further details). This notebook will:
+  - Use precomputed products by default (or not)
+  - Explain tools, extra features, and options of the `hdsims` package.
+
 
 ---
 

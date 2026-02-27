@@ -431,7 +431,8 @@ class S10Sims(lowres_sims.LowResSims):
         if len(coord_info) > 0:
             warnings.warn(f"The {map_info} crosses {coord_info}, where there is a discontinuity "
                           "in the full-sky S10 kSZ and lensing convergence maps. These discontinuities "
-                          "occur along dec. = 0 degrees and R.A. = 0, 90, 180, and 270 degrees.")
+                          "occur along dec. = 0 degrees and R.A. = 0, 90, 180, and 270 degrees."
+                          "You may proceed, but just be aware of this.")
 
     
     # ---------------------------------------------------------------
