@@ -20,9 +20,9 @@ We also provide examples that can reproduce the [HD simulations (TODO: link to H
 
 
 **Main task**: generate 100 square degree ultrahigh-resolution microwave sky simulations and take their power spectra. 
-- To do this, run the `examples/reproduce_10x10.ipynb` notebook (see the "Examples" section below for further details). This notebook will:
+- To do this, run `run_hdsims.ipynb`. For an example of this done on the patch of sky used in [TODO:link to paper](https://arxiv.org/), run the `examples/reproduce_10x10.ipynb` notebook (see the "Examples" section below for further details). These notebooks will provide instructions to:
   - Download the lower-resolution S10 simulations;
-  - Make a 100 square degree higher-resolution counterpart from that;
+  - Make a 100 square degree high-resolution counterpart from that;
   - Take the power spectra of the high-resolution simulations;
   - Make and save the resulting plots.
 
