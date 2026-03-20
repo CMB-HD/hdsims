@@ -930,6 +930,10 @@ def make_run_hdsims_command(path_to_run_hdsims, hd_sims_dir, lowres_sims_dir,
         run_hdsims_cmd_list.append('--nopol')
     if set(freqs) != set(si.freqs):
         freqs_list = ' '.join([str(freq) for freq in freqs])
+        run_hdsims_cmd_list.append(f'--freqs {freqs_list}')
+    if (set(components) != set(si.components)) or (set(components) != set(si.map_components)):
+        components_list = ' '.join(components)
+        run_hdsims_cmd_list.append(f'--components {components_list}')
     if not calculate_power_spectra:
         run_hdsims_cmd_list.append('--nospectra')
     if not save_plots:
