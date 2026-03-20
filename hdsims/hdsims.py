@@ -62,7 +62,7 @@ import shutil
 import numpy as np
 import matplotlib.pyplot as plt
 from pixell import enmap
-from . import utils, siminfo as si, simutils, plots, hdsims_plots
+from . import utils, siminfo as si, simutils, plots, hdsims_plots, s10sims
 
 
 class HDSims(hdsims_plots.HDSimsPlots):
@@ -880,5 +880,70 @@ def load_precomputed_10x10_binning_matrix(bin_dl=False):
     return bbl
 
 
+
+
+
+def make_run_hdsims_command(path_to_run_hdsims, hd_sims_dir, lowres_sims_dir,
+                            ra_ctr=si.ra_ctr, dec_ctr=si.dec_ctr, width=si.width, height=si.height,
+                            apod_width=si.apod_width, cmb_seed=si.cmb_seed, pol=True,
+                            freqs=si.freqs, components=si.map_components,
+                            calculate_power_spectra=True, save_plots=True):
+    if hd_sims_dir in [None, '']:
+        raise ValueError("You must provide the path to the `hd_sims_dir` where the simulations will be saved.")
+    if lowres_sims_dir in [None, '']:
+        raise ValueError("You must provide the path where the full-sky, lower-resolution S10 simulations will be (or already are) saved.")
+
+    # check if S10 files are saved ; if not, need to download them
+    need_s10_sims = False
+    if 'tsz' in components:
+        for freq in freqs:
+            sim_fname = s10sims.get_fullsky_s10_sim_fname('tsz', freq=freq, s10_sims_dir=lowres_sims_dir)
+            if not os.path.exists(sim_fname):
+                need_s10_sims = True
+    if ('ksz' in components) and (not os.path.exists(s10sims.get_fullsky_s10_sim_fname('ksz', s10_sims_dir=lowres_sims_dir))):
+        need_s10_sims = True
+    if (('kappa' in components) or ('cmb' in components)) and (not os.path.exists(s10sims.get_fullsky_s10_sim_fname('kappa', s10_sims_dir=lowres_sims_dir))):
+        need_s10_sims = True
+    if ('radio' in components) and (not os.path.exists(s10sims.get_fullsky_s10_catalog_fnames('radio', s10_sims_dir=lowres_sims_dir))):
+        need_s10_sims = True
+    if 'cib' in components:
+        cib_catalog_fnames = s10sims.get_fullsky_s10_catalog_fnames('cib', s10_sims_dir=lowres_sims_dir)
+        if not all([os.path.exists(fname) for fname in cib_catalog_fnames]):
+            need_s10_sims = True
+
+    # command to run hdsims:
+    run_hdsims_file = os.path.join(path_to_run_hdsims, 'run_hdsims.py')
+    run_hdsims_cmd_list = [f'python {run_hdsims_file} {hd_sims_dir} ----lowres-sims-dir {lowres_sims_dir}']
+    if not np.isclose(ra_ctr, si.ra_ctr, atol=utils.arcmin2deg(si.hd_res), rtol=0):
+        run_hdsims_cmd_list.append(f'--ra {simutils.round_str(ra_ctr, n=5)}')
+    if not np.isclose(dec_ctr, si.dec_ctr, atol=utils.arcmin2deg(si.hd_res), rtol=0):
+        run_hdsims_cmd_list.append(f'--dec {simutils.round_str(dec_ctr, n=5)}')
+    if not np.isclose(width, si.width, atol=utils.arcmin2deg(si.hd_res), rtol=0):
+        run_hdsims_cmd_list.append(f'--width {simutils.round_str(width, n=5)}')
+    if not np.isclose(height, si.height, atol=utils.arcmin2deg(si.hd_res), rtol=0):
+        run_hdsims_cmd_list.append(f'--height {simutils.round_str(height, n=5)}')
+    if not np.isclose(apod_width, si.apod_width, atol=utils.arcmin2deg(si.hd_res), rtol=0):
+        run_hdsims_cmd_list.append(f'--apod_width {simutils.round_str(apod_width, n=5)}')
+    if cmb_seed != si.cmb_seed:
+        run_hdsims_cmd_list.append(f'--cmbseed {int(cmb_seed)}')
+    if not pol:
+        run_hdsims_cmd_list.append('--nopol')
+    if set(freqs) != set(si.freqs):
+        freqs_list = ' '.join([str(freq) for freq in freqs])
+    if not calculate_power_spectra:
+        run_hdsims_cmd_list.append('--nospectra')
+    if not save_plots:
+        run_hdsims_cmd_list.append('--noplots')
+    run_hdsims_cmd = ' '.join(run_hdsims_cmd_list)
+
+
+    if need_s10_sims:
+        s10_download_file = os.path.join(path_to_run_hdsims, 'download_all_S10sims_data.sh')
+        s10_download_cmd = f'bash {s10_download_file} {lowres_sims_dir}'
+        print("Before generating the HD simulations, you must download the S10 simulation files ; you may do so by running the following command:\n")
+        print("  ", s10_download_cmd, "\n")
+
+    print("To generate the HD simulations, run the following command:\n")
+    print("  ", run_hdsims_cmd, "\n")
 
 

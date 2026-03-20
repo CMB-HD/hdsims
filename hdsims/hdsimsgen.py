@@ -284,9 +284,11 @@ class HDSimsGen(s10sims.S10Sims):
         if os.path.exists(camb_theory_fname):
             theo = utils.load_dict_from_file(camb_theory_fname, si.spectra_col_names)
         else:
-            if self.get_camb_cosmo_params() is not None: # calculate the theory:
+            if self.get_camb_cosmo_params() is not None: # calculate the theory for the given cosmology:
                 pars = self.get_cambparams_for_sim()
                 theo = simutils.calculate_camb_unlensed(camb_params=pars, lmax=self.lmax4theo)
+            elif self.lmax4theo != si.lmax4theo: # calculate w/ default cosmology but different lmax
+                theo = simutils.calculate_camb_unlensed(lmax=self.lmax4theo)
             else: # load the default theory spectra:
                 theo = simutils.load_camb_theory()
             header_info = ("unlensed CMB spectra as C_ell (no multiplicative ell-factors) in uK^2;"

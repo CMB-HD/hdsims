@@ -795,9 +795,10 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         self.infomsg(f'{utils.tmsg(time.time() - t)} to take power')
 
         if save:
+            pol = self.get_kwarg('pol', **kwargs)
             for spec_type in spec_types:
-                col_names = simutils.get_spectra_keys(component, pol=self.get_kwarg('pol', **kwargs))
-                keys = simutils.get_spectra_keys(component, cl=('cl' in spec_type), dl=('dl' in spec_type))
+                col_names = simutils.get_spectra_keys(component, pol=pol)
+                keys = simutils.get_spectra_keys(component, cl=('cl' in spec_type), dl=('dl' in spec_type), pol=pol)
                 utils.save_dict_to_file(fnames[spec_type], sim_power, keys=keys, col_names=col_names)
                 self.infomsg(f"saved {fnames[spec_type]}")
 
