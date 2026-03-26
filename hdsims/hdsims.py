@@ -913,7 +913,7 @@ def make_run_hdsims_command(path_to_run_hdsims, hd_sims_dir, lowres_sims_dir,
 
     # command to run hdsims:
     run_hdsims_file = os.path.join(path_to_run_hdsims, 'run_hdsims.py')
-    run_hdsims_cmd_list = [f'python {run_hdsims_file} {hd_sims_dir} ----lowres-sims-dir {lowres_sims_dir}']
+    run_hdsims_cmd_list = [f'python {run_hdsims_file} {hd_sims_dir} --lowres-sims-dir {lowres_sims_dir}']
     if not np.isclose(ra_ctr, si.ra_ctr, atol=utils.arcmin2deg(si.hd_res), rtol=0):
         run_hdsims_cmd_list.append(f'--ra {simutils.round_str(ra_ctr, n=5)}')
     if not np.isclose(dec_ctr, si.dec_ctr, atol=utils.arcmin2deg(si.hd_res), rtol=0):
