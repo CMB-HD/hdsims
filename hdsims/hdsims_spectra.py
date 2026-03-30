@@ -695,7 +695,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
                                                                  bin_dl=('dl' in spec_type), **kwargs_with_pol)
                 if os.path.exists(fname_with_pol):
                     cols_with_pol = simutils.get_spectra_keys(component, pol=True)
-                    tqu_sim_power = utils.load_dict_from_file(fname_with_pol, cols=cols_with_pol)
+                    tqu_sim_power = utils.load_dict_from_file(fname_with_pol, cols_with_pol)
                     utils.save_dict_to_file(fnames[spec_type], tqu_sim_power, keys=cols)
             # otherwise, just try to load the file:
             sim_spectra = utils.load_dict_from_file(fnames[spec_type], cols)
@@ -1057,7 +1057,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
                                                           bin_dl=('dl' in spec_type), **kwargs_with_pol)
                 if os.path.exists(fname_with_pol):
                     cols_with_pol = simutils.get_spectra_keys(components, pol=True)
-                    tqu_sim_power = utils.load_dict_from_file(fname_with_pol, cols=cols_with_pol)
+                    tqu_sim_power = utils.load_dict_from_file(fname_with_pol, cols_with_pol)
                     utils.save_dict_to_file(fnames[spec_type], tqu_sim_power, keys=cols)
             sim_spectra = utils.load_dict_from_file(fnames[spec_type], cols)
             sim_power['ells'] = sim_spectra['ells']
@@ -1401,7 +1401,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
                                                                 bin_dl=('dl' in spec_type), **kwargs_with_pol)
                 if os.path.exists(fname_with_pol):
                     cols_with_pol = simutils.get_spectra_keys(['cmb'], pol=True)
-                    tqu_sim_power = utils.load_dict_from_file(fname_with_pol, cols=cols_with_pol)
+                    tqu_sim_power = utils.load_dict_from_file(fname_with_pol, cols_with_pol)
                     utils.save_dict_to_file(fnames[spec_type], tqu_sim_power, keys=cols)
             sim_spectra = utils.load_dict_from_file(fnames[spec_type], cols)
             sim_power['ells'] = sim_spectra['ells']
