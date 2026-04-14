@@ -431,7 +431,7 @@ def calc_mode_coupling(window, lmax, binning_file, bin_dl=False, beam_fwhm=None,
 
 
 
-def take_sim_power(imap, window, lmax, binning_file, mbb_inv, bin_dl=False, deconvolve_pixwin=False):
+def take_sim_power(imap, window, lmax, binning_file, mbb_inv, bin_dl=False, deconvolve_pixwin=False, pol_window=None):
     """Calculate and bin the power spectra of a simulation, correcting
     for the effect of the apodization.
 
@@ -464,6 +464,14 @@ def take_sim_power(imap, window, lmax, binning_file, mbb_inv, bin_dl=False, deco
         simulation has been convolved with the pixel window, pass
         `deconvolve_pixwin=True`; otherwise, pass
         `deconvolve_pixwin=False`.
+    pol_window : pixell.enmap.ndmap, optional
+        The apodization window applied to the polarization maps before
+        calculating their power spectra. If the `imap` contains T, Q,
+        and U components and a `pol_window` is passed, the `window` is
+        only applied to the temperature map, and the `pol_window` will be
+        applied to the polarization maps. By default, the same `window`
+        is applied to each map (T, Q, and U). Ignored if the `imap` only
+        contains the temperature map.
 
     Returns
     -------
@@ -490,12 +498,24 @@ def take_sim_power(imap, window, lmax, binning_file, mbb_inv, bin_dl=False, deco
     spectra = ["TT", "TE", "TB", "ET", "BT", "EE", "EB", "BE", "BB"] if pol else None
 
     if deconvolve_pixwin:
-        imap = enmap.unapply_window(imap.copy() * window)
-        window = enmap.ones(imap.shape[-2:])
+        if pol and (pol_window is not None):
+            tqu_window = enmap.ones((3, *imap.shape[-2:]), imap.wcs)
+            tqu_window[0] *= window
+            tqu_window[1] *= pol_window
+            tqu_window[2] *= pol_window
+            imap = enmap.unapply_window(imap.copy() * tqu_window)
+            pol_window = enmap.ones(imap.shape[-2:], imap.wcs)
+        else:
+            imap = enmap.unapply_window(imap.copy() * window)
+        window = enmap.ones(imap.shape[-2:], imap.wcs)
     sim = maps.enmap2pspy(imap.copy())
     window = maps.enmap2pspy(window.copy())
     if pol:
-        window = (window, window) # (temp, pol)
+        if pol_window is None:
+            pol_window = window
+        else:
+            pol_window = maps.enmap2pspy(pol_window.copy())
+        window = (window, pol_window) # (temp, pol)
 
     alms = sph_tools.get_alms(sim, window, niter=0, lmax=lmax)
     ells, cls = so_spectra.get_spectra(alms, spectra=spectra)
@@ -513,7 +533,8 @@ def take_sim_power(imap, window, lmax, binning_file, mbb_inv, bin_dl=False, deco
 
 
 def calc_sim_power(imap, window, lmax, binning_file, mbb_inv_dict, 
-                   bin_cl=None, bin_dl=None, deconvolve_pixwin=False, spectra=None):
+                   bin_cl=None, bin_dl=None, deconvolve_pixwin=False, 
+                   spectra=None, pol_window=None):
     """Calculate and bin the power spectra of a simulation, correcting
     for the effect of the apodization.
 
@@ -558,6 +579,14 @@ def calc_sim_power(imap, window, lmax, binning_file, mbb_inv_dict,
         `['tt', 'te', 'ee', 'bb']` for the TT, TE, EE, and BB power
         spectra, respectively. Ignored if the simulation does not include
         polarization.
+    pol_window : pixell.enmap.ndmap, optional
+        The apodization window applied to the polarization maps before 
+        calculating their power spectra. If the `imap` contains T, Q, 
+        and U components and a `pol_window` is passed, the `window` is
+        only applied to the temperature map, and the `pol_window` will be
+        applied to the polarization maps. By default, the same `window` 
+        is applied to each map (T, Q, and U). Ignored if the `imap` only
+        contains the temperature map.
 
     Returns
     -------
@@ -604,12 +633,24 @@ def calc_sim_power(imap, window, lmax, binning_file, mbb_inv_dict,
             spectra = ['tt', 'te', 'ee', 'bb'] if pol else ['tt']
     
         if deconvolve_pixwin:
-            imap = enmap.unapply_window(imap.copy() * window)
-            window = enmap.ones(imap.shape[-2:])
+            if pol and (pol_window is not None):
+                tqu_window = enmap.ones((3, *imap.shape[-2:]), imap.wcs)
+                tqu_window[0] *= window
+                tqu_window[1] *= pol_window
+                tqu_window[2] *= pol_window
+                imap = enmap.unapply_window(imap.copy() * tqu_window)
+                pol_window = enmap.ones(imap.shape[-2:], imap.wcs)
+            else:
+                imap = enmap.unapply_window(imap.copy() * window)
+            window = enmap.ones(imap.shape[-2:], imap.wcs)
         sim = maps.enmap2pspy(imap.copy())
         window = maps.enmap2pspy(window.copy())
         if pol:
-            window = (window, window) # (temp, pol)
+            if pol_window is None:
+                pol_window = window
+            else:
+                pol_window = maps.enmap2pspy(pol_window.copy())
+            window = (window, pol_window) # (temp, pol)
 
         alms = sph_tools.get_alms(sim, window, niter=0, lmax=lmax)
         ells, cls = so_spectra.get_spectra(alms, spectra=spectra_names)
