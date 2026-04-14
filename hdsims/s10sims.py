@@ -249,6 +249,43 @@ def get_mirrored_coords_in_patch(ra, dec, ra_min, ra_max, dec_min, dec_max, octa
     return ras_in_patch, decs_in_patch
 
 
+# for the different CIB models, based on the S10 CIB catalog:
+
+def validate_cib_model_name(cib_model, valid_model_names=si.cib_model_names):
+    """Verify that the name of the given CIB model is a valid name.
+
+    The 'CIB model' refers to the the CIB catalog for the simulations is
+    generated from the original full-sky catalog of the Sehgal et. al.
+    (arXiv:0908.0540) simulations. See arXiv:XXXX.XXXXX (!! TODO:LINK2PAPER !!)
+    for further details.
+
+    Parameters
+    ----------
+    cib_model : str
+        The name of the CIB model.
+    valid_model_names : list of str, optional
+        A list of valid CIB model names. The default is the list of CIB
+        model names in `hdsims.siminfo.cib_model_names`.
+
+    Returns
+    -------
+    cib_model : str
+        The name of the CIB model. Will be all lowercase.
+
+    Raises
+    ------
+    ValueError
+        If the CIB model name is not in the list of `valid_model_names`.
+
+    See Also
+    --------
+    hdsims.siminfo.cib_model_names : The default valid CIB model names.
+    """
+    if cib_model.lower() not in valid_model_names:
+        raise ValueError(f"Unknown `{cib_model = }`. The CIB model name must be one of {valid_model_names}.")
+    return cib_model.lower()
+
+
 
 class S10Sims(lowres_sims.LowResSims):
     """Cut out maps and catalogs for a patch of sky from the full-sky
@@ -410,9 +447,7 @@ class S10Sims(lowres_sims.LowResSims):
                          ra_ctr=ra_ctr, dec_ctr=dec_ctr, width=width, height=height, 
                          apod_width=apod_width, map_apod_width=map_apod_width, res=res,
                          verbose=verbose, log=log, make_output_dirs=make_output_dirs,)
-        self.cib_model = cib_model
-        if self.cib_model is not None:
-            self.cib_model = simutils.validate_cib_model_name(self.cib_model)
+        self.cib_model = validate_cib_model_name(cib_model)
         self.default_kwargs['cib_model'] = self.cib_model
         self.bin_info = None # use default binning if sim spectra are needed
         
@@ -582,63 +617,43 @@ class S10Sims(lowres_sims.LowResSims):
     #  lower-resolution CAR maps & catalogs for our patch of sky:
     # ---------------------------------------------------------------
     
-    def get_intermediate_map_res(self, component, **kwargs):
-        """Return the pixel resolution of the intermediate, 
+    def get_intermediate_map_res(self, component):
+        """Return the pixel resolution of the intermediate,
         S10-resolution CAR map.
-        
+
         Parameters
         ----------
         component : str
             The name of the map component. The available S10 components
-            are `'ksz'`, `'tsz'`, `'kappa'`, `'cib'`, or `'radio'` for 
-            the kSZ, tSZ, lensing convergence, CIB, and radio maps, 
+            are `'ksz'`, `'tsz'`, `'kappa'`, `'cib'`, or `'radio'` for
+            the kSZ, tSZ, lensing convergence, CIB, and radio maps,
             respectively.
-        
+
         Returns
         -------
         res : float
             The map resolution, in arcminutes.
-        
-        Other Parameters
-        ----------------
-        **kwargs : dict
-            If `component='cib'`, you may pass the name of a `cib_model`
-            (`str` or `None`) to use. The default is given by the 
-            `cib_model` attribute defined during initialization.
-            
+
         See Also
         --------
         healpy.nside2resol : Map resolution from HEALPix `nside` parameter.
-            
+
         Notes
         -----
-        The resolution of the tSZ, kSZ, lensing convergence, and radio 
-        components are always equal to the S10 resolution (approximately
-        0.86 arcminutes for `component='kappa'` or 0.43 arcminutes 
-        otherwise). For the CIB, if the `cib_model` is not `None` or 
-        `'s10'`, the resolution will be for a map that is used when making
-        the CIB catalog for the given CIB model on the patch of sky. Pass
-        `cib_model=None` to return the S10 CIB map resolution instead.
+        The resolution of the tSZ, kSZ, CIB, and radio maps is
+        approximately 0.43 arcminutes, and the resolution of the
+        lensing convergence map (`component='kappa'`) is approximately
+        0.86 arcminutes.
         """
         component = simutils.validate_sim_component_name(component, valid_components=si.s10_sim_components)
-        if component == 'kappa':
-            res = si.s10_kappa_res
-        elif component == 'cib':
-            cib_model_name = self.get_kwarg('cib_model', **kwargs)
-            if cib_model_name in ['s10', None]:
-                res = si.s10_res
-            else:
-                cib_model = simutils.validate_cib_model_name(cib_model_name)
-                res = si.cib_model_pixel_res[cib_model]
-        else:
-            res = si.s10_res
+        res = si.s10_kappa_res if (component == 'kappa') else si.s10_res
         return res
 
 
-    def get_intermediate_map_shape_wcs(self, component, padded_ntimes=2, **kwargs):
+    def get_intermediate_map_shape_wcs(self, component, padded_ntimes=2):
         """Return the geometry of the intermediate, lower-resolution map
         on a patch of the sky.
-        
+
         The geometry of a `pixell.enmap.ndmap` CAR map for a given map
         size, location, and resolution is defined by its `shape` and `wcs`
         attributes.
@@ -647,8 +662,8 @@ class S10Sims(lowres_sims.LowResSims):
         ----------
         component : str
             The name of the map component. The available S10 components
-            are `'ksz'`, `'tsz'`, `'kappa'`, `'cib'`, or `'radio'` for 
-            the kSZ, tSZ, lensing convergence, CIB, and radio maps, 
+            are `'ksz'`, `'tsz'`, `'kappa'`, `'cib'`, or `'radio'` for
+            the kSZ, tSZ, lensing convergence, CIB, and radio maps,
             respectively.
         padded_ntimes : int, default=2
             The number of times the patch of sky has been 'padded', i.e.
@@ -656,47 +671,33 @@ class S10Sims(lowres_sims.LowResSims):
             values are:
             - `padded_ntimes=0` for patch with an area given by the `width`
               and `height` attributes defined during initialization,
-            - `padded_ntimes=1` for patch with an area given by the 
+            - `padded_ntimes=1` for patch with an area given by the
               `padded_width` and `padded_height` attributes,
-            - `padded_ntimes=2` for patch with an area given by the 
+            - `padded_ntimes=2` for patch with an area given by the
               `padded2x_width` and `padded2x_height` attributes.
-              
+
         Returns
         -------
         shape : tuple of int
             The shape `(Ny, Nx)` of the array of map pixels on a given
             patch of sky at the lower resolution. `Ny` and `Nx` are the
-            number of pixels along the dec. and R.A. directions, 
+            number of pixels along the dec. and R.A. directions,
             respectively.
         wcs : astropy.wcs.wcs.WCS
-            Specifies the astropy World Coordinate System for the 
+            Specifies the astropy World Coordinate System for the
             pixelization of the map at the lower resolution.
-        
-        Other Parameters
-        ----------------
-        **kwargs : dict
-            If `component='cib'`, you may pass the name of a `cib_model`
-            (`str` or `None`) to use. The default is given by the 
-            `cib_model` attribute defined during initialization.
-        
+
         See Also
         --------
-        pixell.enmap.geometry, hdsims.maps.get_shape_wcs : 
+        pixell.enmap.geometry, hdsims.maps.get_shape_wcs :
             Constructs the `shape`, `wcs` pair for a map.
-        
-        Notes
-        -----
-        For the CIB, if the `cib_model` is not `None` or `'s10'`, the 
-        geometry will be for a map that is used when making the CIB
-        catalog for the given CIB model on the patch of sky. Pass
-        `cib_model=None` to return the S10 CIB map geometry instead.
         """
         if padded_ntimes not in [0, 1, 2]:
             raise ValueError(f"`{padded_ntimes = }`. Pass `padded_ntimes=0` for a {self._map_area_info} map,"
                              f" `padded_ntimes=1` for a {self._padded_map_area_info} map, or"
                              f" `padded_ntimes=2` for a {self._padded2x_map_area_info} map.")
         component = simutils.validate_sim_component_name(component, valid_components=si.s10_sim_components)
-        res = self.get_intermediate_map_res(component, **kwargs)
+        res = self.get_intermediate_map_res(component)
         if padded_ntimes == 2:
             width = self.padded2x_width
             height = self.padded2x_height
@@ -751,35 +752,35 @@ class S10Sims(lowres_sims.LowResSims):
 
     def get_intermediate_map_apod_window(self, component, save=False, **kwargs):
         """Return the apodization window for a S10-resolution CAR map.
-        
+
         Parameters
         ----------
         component : str
             The name of the map component. The available S10 components
-            are `'ksz'`, `'tsz'`, `'kappa'`, `'cib'`, or `'radio'` for 
-            the kSZ, tSZ, lensing convergence, CIB, and radio maps, 
+            are `'ksz'`, `'tsz'`, `'kappa'`, `'cib'`, or `'radio'` for
+            the kSZ, tSZ, lensing convergence, CIB, and radio maps,
             respectively.
         save : bool, default=False
             If `save=True`, the apodization window will be saved.
-        
+
         Returns
         -------
         window : pixell.enmap.ndmap
             The apodization window.
-            
+
         Other Parameters
         ----------------
         **kwargs : dict
             Optional keyword arguments for the apodization window:
             - The `width` and `height` (int or float), in degrees, of the
-              map. By default, the values of the `padded2x_width` and 
+              map. By default, the values of the `padded2x_width` and
               `padded2x_height` attributes are used.
             - The `apod_width` (degrees) to use. The default is given by
-              the `map_apod_width` attribute. 
-        
+              the `map_apod_width` attribute.
+
         See Also
         --------
-        get_intermediate_map_apod_window_fname : 
+        get_intermediate_map_apod_window_fname :
             The filename of the window used if `save=True`.
         apodize_intermediate_map :
             Applies the apodization to a map at the S10 resolution.
@@ -790,7 +791,7 @@ class S10Sims(lowres_sims.LowResSims):
         else:
             defaults = {'width': self.padded2x_width, 'height': self.padded2x_height, 'apod_width': self.map_apod_width}
             kwargs = self.get_kwargs_with_defaults(defaults=defaults, **kwargs)
-            res = self.get_intermediate_map_res(component, cib_model=None)
+            res = self.get_intermediate_map_res(component)
             shape, wcs = maps.get_shape_wcs(res, self.ra_ctr, self.dec_ctr, kwargs['width'], height=kwargs['height'])
             self.infomsg("making apodization window for intermediate "
                          f"{round(kwargs['width'],2)} deg. x {round(kwargs['height'],2)} deg. map")
@@ -820,25 +821,25 @@ class S10Sims(lowres_sims.LowResSims):
     def get_intermediate_map_power_lmax(self, component):
         """Return the maximum multipole used when calculating the power
         spectrum of an intermediate, S10-resolution CAR map.
-        
+
         Parameters
         ----------
         component : str
             The name of the map component. The available S10 components
-            are `'ksz'`, `'tsz'`, `'kappa'`, `'cib'`, or `'radio'` for 
-            the kSZ, tSZ, lensing convergence, CIB, and radio maps, 
+            are `'ksz'`, `'tsz'`, `'kappa'`, `'cib'`, or `'radio'` for
+            the kSZ, tSZ, lensing convergence, CIB, and radio maps,
             respectively.
-        
+
         Returns
         -------
         lmax : int
-            The maximum multipole. 
-            
+            The maximum multipole.
+
         See Also
         --------
         pspy.so_map.so_map.get_lmax_limit
         """
-        shape, wcs = self.get_intermediate_map_shape_wcs(component, padded_ntimes=0, cib_model=None)
+        shape, wcs = self.get_intermediate_map_shape_wcs(component, padded_ntimes=0)
         lmax = int(maps.enmap2pspy(enmap.ones(shape, wcs)).get_lmax_limit())
         return lmax
 
@@ -934,7 +935,7 @@ class S10Sims(lowres_sims.LowResSims):
     def get_intermediate_sim_power_fname(self, component, freq=None, bin_dl=False, **kwargs):
         """Return the path to the saved power spectrum of the
         intermediate, S10-resolution map.
-        
+
         Parameters
         ----------
         component : str
@@ -947,18 +948,18 @@ class S10Sims(lowres_sims.LowResSims):
             30, 90, 148, 219, 277, or 350 GHz.
         bin_dl : bool, default=False
             If `bin_dl=True`, the power spectra are multiplied by a factor
-            of `ell * (ell + 1) / (2 * pi)` at each multipole `ell`. 
-           
+            of `ell * (ell + 1) / (2 * pi)` at each multipole `ell`.
+
         Returns
         -------
         fname : str
             The path to the power spectrum file.
-        
+
         Other Parameters
         ----------------
         **kwargs : dict
             If `component='cib'`, you may pass the name of a `cib_model`
-            (`str` or `None`) to use. The default is given by the 
+            (`str` or `None`) to use. The default is given by the
             `cib_model` attribute defined during initialization.
         """
         spec_type = 'dl' if bin_dl else 'cl'
@@ -967,13 +968,7 @@ class S10Sims(lowres_sims.LowResSims):
         if simutils.has_freq_dependent_component(component):
             freq = simutils.validate_sim_freq(freq)
             fname_info.append(f'{freq:03d}')
-        fname_info.append(component)
-        if component == 'cib':
-            cib_model = self.get_kwarg('cib_model', **kwargs)
-            if cib_model is not None:
-                cib_model = simutils.validate_cib_model_name(cib_model)
-                if cib_model not in ['s10', si.baseline_cib_model_name]:
-                    fname_info.append(cib_model) # for non-default model
+        fname_info.append(self.get_lowres_sim_component_name(component, **kwargs))
         if self.bin_info is not None: # for non-default binning
             fname_info.append(self.bin_info)
         fname_root = '_'.join(fname_info)
@@ -1270,14 +1265,14 @@ class S10Sims(lowres_sims.LowResSims):
             self.infomsg(f"{utils.tmsg(time.time()-t)} to get catalog ({len(lines)-1} rows); saved to {fname}")
     
     
-    def generate_intermediate_point_source_maps(self, component, save=False, res=si.s10_res, **kwargs):
-        """Generate a set of lower-resolution maps of point sources from 
+    def generate_intermediate_point_source_maps(self, component, save=False, **kwargs):
+        """Generate a set of lower-resolution maps of point sources from
         the catalog of sources in the patch of sky.
-        
+
         The size of the patch is given by the `padded2x_width` and
-        `padded2x_height` attributes (inherited from the 
+        `padded2x_height` attributes (inherited from the
         `hdsims.simutils.Sims` class).
-        
+
         Parameters
         ----------
         component : str
@@ -1285,19 +1280,15 @@ class S10Sims(lowres_sims.LowResSims):
             `'cib'` or `'radio'` for CIB or radio galaxies, respectively.
         save : bool, default=False
             Whether to save the maps.
-            
+
         Returns
         -------
         sims : dict of pixell.enmap.ndmap
             A dictionary with a key for each frequency (`int`) holding the
             map at that frequency.
-        
+
         Other Parameters
         ----------------
-        res : float, optional
-            The resolution (in arcminutes) of the maps. The default is the
-            original S10 resolution for a HEALPix `nside` parameter of 
-            `8192` (approximately 0.43 arcminutes). 
         **kwargs : dict
             The additional, optional keyword arguments are:
             - `freqs` (`list` of `int`): A list of map frequencies (GHz)
@@ -1305,44 +1296,32 @@ class S10Sims(lowres_sims.LowResSims):
               defined during initialization. Each frequency in the list
               must be one of `30`, `90`, `148`, `219`, `277`, or `350`.
             - `cib_model` (`str` or `None`): A name for the CIB model to
-              use when generating the maps. The default is given by the 
+              use when generating the maps. The default is given by the
               `cib_model` attribute defined during initialization. This
               will only be used if `component='cib'`.
-        
+
         See Also
         --------
-        get_intermediate_sim_fname : 
+        get_intermediate_sim_fname :
             The filename used when saving the maps at each frequency.
-        
-        Notes
-        -----
-        The maps will only be saved for the default S10 resolution; if a
-        different value of `res` is passed, the `save` parameter will be 
-        ignored. 
         """
         freqs = simutils.validate_sim_freqs(self.get_kwarg('freqs', **kwargs))
         component = simutils.validate_sim_component_name(component, valid_components=['cib', 'radio'])
-        cib_model = simutils.validate_cib_model_name(self.get_kwarg('cib_model', **kwargs),
-                                                     valid_model_names=[*si.cib_model_names, 's10', None])
-        # compare `res` to the default S10 resolution, since we don't save
-        # sims at a different resolution ; use the resolution of the
-        # ultrahigh-resolution maps as a tolerance for the comparison:
-        use_s10_res = abs(si.s10_res - res) <= self.res 
-        # check if all sims are already saved:
+        cib_model = validate_cib_model_name(self.get_kwarg('cib_model', **kwargs))
         fnames = {freq: self.get_intermediate_sim_fname(component, freq=freq, cib_model=cib_model) for freq in freqs}
+        # check if all sims are already saved:
         sims_are_saved = all([os.path.exists(fnames[freq]) for freq in freqs])
-        if sims_are_saved and use_s10_res: 
+        if sims_are_saved:
             sims = {freq: enmap.read_map(fnames[freq]) for freq in freqs}
         else:
             t = time.time()
-            full_catalog = self.get_sim_catalog(component, cib_model=cib_model)
+            catalog = self.get_sim_catalog(component, cib_model=cib_model)
             # put the sources on the intermediate-resolution maps:
-            catalog_info = f'S10 catalog' if ((component == 'cib') and (cib_model in ['s10', None])) else 'catalog'
             self.infomsg(f"generating intermediate {component} maps for {freqs = } GHz "
-                         f"from {catalog_info} of {len(full_catalog)} {component} sources")
-            shape, wcs = maps.get_shape_wcs(res, self.ra_ctr, self.dec_ctr, self.padded2x_width, height=self.padded2x_height)
-            sims = maps.make_src_maps(shape, wcs, full_catalog, freqs=freqs)
-            if use_s10_res and save:
+                         f"from the catalog of {len(catalog)} {component} sources")
+            shape, wcs = self.get_intermediate_map_shape_wcs(component)
+            sims = maps.make_src_maps(shape, wcs, catalog, freqs=freqs)
+            if save:
                 for freq in freqs:
                     enmap.write_map(fnames[freq], sims[freq])
                     self.infomsg(f"saved intermediate {freq} GHz {component} map to {fnames[freq]}")
@@ -1353,7 +1332,7 @@ class S10Sims(lowres_sims.LowResSims):
     def get_intermediate_sim_fname(self, component, freq=None, **kwargs):
         """Return the path to the S10-resolution CAR map of the given
         component and frequency.
-        
+
         Parameters
         ----------
         component : str
@@ -1364,30 +1343,24 @@ class S10Sims(lowres_sims.LowResSims):
             The frequency (in GHz) of the map; must be provided for
             frequency-dependent components. The allowed frequencies are
             30, 90, 148, 219, 277, or 350 GHz.
-              
+
         Returns
         -------
         fname : str
             The path to the map file.
-        
+
         Other Parameters
         ----------------
         **kwargs : dict
             If `component='cib'`, you may pass the name of a `cib_model`
-            (`str` or `None`) to use. The default is given by the 
+            (`str` or `None`) to use. The default is given by the
             `cib_model` attribute defined during initialization.
         """
         fname_info = []
         component = simutils.validate_sim_component_name(component, valid_components=si.s10_sim_components)
         if simutils.has_freq_dependent_component(component):
             fname_info.append(f'{simutils.validate_sim_freq(freq):03d}')
-        fname_info.append(component)
-        if component == 'cib':
-            cib_model_name = self.get_kwarg('cib_model', **kwargs)
-            if cib_model_name is not None:
-                cib_model = simutils.validate_cib_model_name(cib_model_name)
-                if cib_model not in ['s10', si.baseline_cib_model_name]:
-                    fname_info.append(cib_model)
+        fname_info.append(self.get_lowres_sim_component_name(component, **kwargs))
         fname_info.append(f'{simutils.round_str(self.padded2x_width)}x{simutils.round_str(self.padded2x_height)}deg')
         fname_root = '_'.join(fname_info)
         fname = os.path.join(self.intermediate_maps_dir(), f'{fname_root}_s10.fits')
@@ -1426,21 +1399,14 @@ class S10Sims(lowres_sims.LowResSims):
         return enmap.read_map(fname)
     
     
-    def generate_cib_sim_catalog(self, save_intermediate_maps=True, **kwargs):
+    def generate_cib_sim_catalog(self, **kwargs):
         """Generate the CIB catalog used to make CIB simulations for the
         given CIB model.
-        
+
         The catalog will include CIB sources within an area given by the
         `padded2x_width` and `padded2x_height` attributes (inherited from
         the `hdsims.simutils.Sims` class).
-        
-        Parameters
-        ----------
-        save_intermediate_maps : bool, default=True
-            Whether to save the intermediate maps used when making the
-            catalog. Ignored if the intermediate maps are not at the S10
-            resolution; see the 'Notes' section for more details.
-        
+
         Returns
         -------
         catalog : pandas.DataFrame
@@ -1448,27 +1414,24 @@ class S10Sims(lowres_sims.LowResSims):
             `padded2x_width` and `padded2x_height` attributes. The catalog
             has columns named `'RADeg'` and `'decDeg'` for the  R.A. and
             dec. coordinates (in degrees), respectively, of each source.
-            The columns for the flux (in mJy) of each source at each 
+            The columns for the flux (in mJy) of each source at each
             `freq` (in GHz) are named `'fluxmJy_{freq}GHz'`; e.g., the
             column name for the 90 GHz flux is `'fluxmJy_90GHz'`. The
             catalog has columns for the flux at 30, 90, 148, 219, 277, and
             350 GHz.
-        
+
         Other Parameters
         ----------------
         **kwargs : dict
             The name of the `cib_model` (`str` or `None`) to use. The
             default is given by the `cib_model` attribute defined during
             initialization.
-        
+
         See Also
         --------
-        trim_fullsky_s10_catalog_for_patch : 
+        trim_fullsky_s10_catalog_for_patch :
             The catalog of all S10 sources within the patch of sky.
-        generate_intermediate_point_source_maps :
-            Places sources from the catalog onto maps at a given 
-            resolution.
-        
+
         Notes
         -----
         Each CIB model has an associated `pixel_size` (map resolution),
@@ -1476,80 +1439,76 @@ class S10Sims(lowres_sims.LowResSims):
         catalog for the CIB model, we:
         1. Obtain the catalog of all CIB sources from the full-sky S10
            catalog that are located within the patch of sky.
-        2. Place these sources onto maps that have the `pixel_size`
-           resolution at 30, 90, 148, 219, 277, and 350 GHz. When multiple
-           sources are located in the same map pixel, the value of that
-           pixel will be the sum of their fluxes.
-        3. Make a new catalog where each non-zero pixel in the map 
-           corresponds to a single source. The flux of each source is
-           given by the value of its pixel in each map, and the location
-           of each source is given by the R.A. and dec. of the pixel
-           center. As a result, the coordinates in this catalog will all
-           fall onto a grid.
+        2. Calculate which pixel each source would fall in to when placed
+           on a map with the `pixel_size` resolution. (As the map pixels
+           get larger, more sources will fall into a given pixel,
+           increasing the total flux in that pixel.)
+        3. Make a new catalog where each non-zero pixel in the
+           `pixel_size`-resolution map corresponds to a single source.
+           The flux of each source is given by the total flux of all
+           sources in that pixel, and the location of each source is
+           given by the R.A. and dec. of the pixel center. (As a result,
+           the coordinates in this catalog will all fall onto a grid.)
         4. Add some scatter, randomly drawn from a Gaussian distribution,
-           to the position of each source. The standard deviation of the 
-           distribution is 20% of the `pixel_size`.
-        
-        The intermediate maps that are generated in this process are only
-        saved if the `pixel_size` of the CIB model is the same as the S10
-        resolution. 
-        
+           to the position of each source. The standard deviation of the
+           distribution is 20% of the `pixel_size`. This is only done if
+           the `pixel_size` is larger than the size of the
+           ultrahigh-resolution map pixels.
+
         Since there are many CIB sources in the full-sky S10 catalogs (the
         combined size of the catalog files is about 81 GB), it may take a
-        very long time to generate the catalog for the CIB model. 
+        very long time to generate the catalog for the CIB model.
         """
         component = 'cib'
         freqs = si.freqs # do this once for all freqs in S10 catalog
-        cib_model = simutils.validate_cib_model_name(self.get_kwarg('cib_model', **kwargs))
-        # only save intermediate maps if they are at the S10 resolution:
-        save_intermediate_maps = False if (cib_model != si.baseline_cib_model_name) else save_intermediate_maps
+        cib_model = validate_cib_model_name(self.get_kwarg('cib_model', **kwargs),
+                                            valid_model_names=[*si.cib_model_names, None])
         fname = self.get_sim_catalog_fname(component, cib_model=cib_model)
         if not os.path.exists(fname):
-            self.infomsg(f"making catalog for CIB sims using the '{cib_model}' CIB model")
-            t = time.time()
-            # generate sims at the resolution of the CIB model using all
-            # S10 sources within the patch of sky:
-            pixel_size = self.get_intermediate_map_res(component, cib_model=cib_model)
-            lowres_sims = self.generate_intermediate_point_source_maps(component, save=save_intermediate_maps, 
-                                                                       res=pixel_size, cib_model='s10', freqs=freqs)
-            # make a catalog with (at most) 1 source per lower-resolution
-            # pixel, placed at the pixel center:
-            catalog = fgcatalogs.make_catalog_from_sims(lowres_sims)
-            # add some scatter to the catalog positions:
-            lowres_shape, lowres_wcs = self.get_intermediate_map_shape_wcs(component, cib_model=cib_model)
-            catalog['RADeg'], catalog['decDeg'] = fgcatalogs.add_gauss_scatter_to_coords(catalog['RADeg'].values, 
-                                                                                         catalog['decDeg'].values, 
-                                                                                         lowres_shape, lowres_wcs)
-            catalog.to_csv(fname)
-            self.infomsg(f"{utils.tmsg(time.time()-t)} to make CIB sim catalog ({len(catalog)} rows); saved {fname}")
+            # get the catalog of all CIB sources in our patch of sky from the full-sky catalog:
+            catalog = self.get_patch_catalog(component)
+            if cib_model is not None:
+                self.infomsg(f"making catalog for CIB sims using the '{cib_model}' CIB model")
+                t = time.time()
+                # make a catalog with (at most) 1 source per pixel (for this CIB model pixel size),
+                # placed at the pixel center:
+                pixel_size = si.cib_model_pixel_res[cib_model]
+                shape, wcs = maps.get_shape_wcs(pixel_size, self.ra_ctr, self.dec_ctr,
+                                                self.padded2x_width, height=self.padded2x_height)
+                catalog = maps.make_catalog_for_map_geometry(catalog, shape, wcs)
+                if pixel_size - self.res > self.res: # add some scatter to the catalog positions:
+                    catalog['RADeg'], catalog['decDeg'] = fgcatalogs.add_gauss_scatter_to_coords(catalog['RADeg'].values,
+                                                                                                 catalog['decDeg'].values,
+                                                                                                 shape, wcs)
+                catalog.to_csv(fname)
+                self.infomsg(f"{utils.tmsg(time.time()-t)} to make CIB sim catalog ({len(catalog)} rows); saved {fname}")
         else:
             self.infomsg(f"loading catalog for CIB sims ('{cib_model}' CIB model) from {fname}")
             catalog = fgcatalogs.load_catalog(fname)
         return catalog
     
     
-    
     def get_sim_catalog_fname(self, component, **kwargs):
         """Return the path to the catalog of objects in the simulations
         for a patch of sky.
-        
+
         Parameters
         ----------
         component : str
-            The name of the map component. The allowed values are: 
+            The name of the map component. The allowed values are:
             `'radio'` for radio galaxies, `'cib'` for the CIB, or one of
             `'sz'`, `'tsz'`, or `'ksz'` for SZ clusters.
-            
+
         Returns
         -------
         fname : str
             The path to the catalog file.
-            
+
         Other Parameters
         ----------------
         **kwargs : dict
             If `component='cib'`, you may pass the name of a `cib_model`
-            (`str` or `None`) to use. The default is given by the 
+            (`str` or `None`) to use. The default is given by the
             `cib_model` attribute defined during initialization.
         """
         # get file name for the catalog that was "cut out" for the patch
@@ -1557,12 +1516,17 @@ class S10Sims(lowres_sims.LowResSims):
         fname = self.get_patch_catalog_fname(component)
         # for the CIB catalog, include information about the `cib_model`:
         cib_model = self.get_kwarg('cib_model', **kwargs)
-        if ('cib' in component.lower()) and (cib_model not in ['s10', None]):
+        if ('cib' in component.lower()) and (cib_model is not None):
             # for clarity, add `'hd'` to the filename to distinguish the
-            # catalog for this CIB model from the catalog that was 
+            # catalog for this CIB model from the catalog that was
             # 'cut out' from the full-sky catalog:
-            cib_model_name = 'hd' if (cib_model.lower() == si.baseline_cib_model_name) else f'hd_{cib_model}'
-            catalog_path, catalog_fname = os.path.split(fname) 
+            if cib_model.lower() == si.baseline_cib_model_name:
+                cib_model_name = 'hd'
+            elif cib_model.lower() == si.s10_cib_model_name:
+                cib_model_name = 'hd_s10model'
+            else:
+                cib_model_name = f'hd_{cib_model}'
+            catalog_path, catalog_fname = os.path.split(fname)
             if 's10' in catalog_fname:
                 catalog_fname = catalog_fname.replace('s10', cib_model_name)
             else:
@@ -1633,56 +1597,53 @@ class S10Sims(lowres_sims.LowResSims):
     def get_sim_catalog(self, component, **kwargs):
         """Return the catalog of objects in the simulations for a patch of
         sky, cut out from a full-sky catalog.
-        
+
         This catalog contains all objects (e.g. CIB or radio galaxies, SZ
         clusters) within the region defined by the `padded2x_width` and
-        `padded2x_height` attributes inherited from the 
+        `padded2x_height` attributes inherited from the
         `hdsims.simutils.Sims` class.
-        
+
         Parameters
         ----------
         component : str
-            The name of the map component. The allowed values are: 
+            The name of the map component. The allowed values are:
             `'radio'` for radio galaxies, `'cib'` for the CIB, or one of
             `'sz'`, `'tsz'`, or `'ksz'` for SZ clusters.
-            
+
         Returns
         -------
         catalog : pandas.DataFrame
             A catalog of objects in the simulation of the `component` on
             the full patch of sky defined by the `padded2x_width` and
-            `padded2x_height` attributes. 
-            
+            `padded2x_height` attributes.
+
             The catalog has columns named `'RADeg'` and `'decDeg'` for the
             R.A. and dec. coordinates (in degrees), respectively, of each
             object. For CIB and radio galaxies, the columns for the flux
             (in mJy) of each source at each `freq` (in GHz) in the list of
             `freqs` are named `'fluxmJy_{freq}GHz'`; e.g., the column name
             is `'fluxmJy_90GHz'` for 90 GHz.
-            
+
         Other Parameters
         ----------------
         **kwargs : dict
-            If `component='cib'`, you may pass: 
-            - `cib_model` (`str` or `None`): A name for the CIB model to
-              use. The default is given by the `cib_model` attribute
-              defined during initialization.
-            - `save_intermediate_maps` (`bool`, default is `False`): 
-              Whether to save CIB maps at the S10 resolution on the patch
-              of sky; this is only used if those maps are generated while
-              making the catalog for the given `cib_model`.
-        
+            If `component='cib'`, you may pass a `cib_model` (`str` or
+            `None`) for the CIB model to use. The default is given by the
+            `cib_model` attribute defined during initialization. If
+            `cib_model=None`, the catalog of all S10 sources within the
+            patch of sky is returned.
+
         Notes
         -----
         The CIB and radio catalogs are used to generate the corresponding
         simulations at each frequency. For the CIB, we multiply all fluxes
         at each frequency in the original S10 catalog by 0.75 before
-        saving and returning the catalog on the patch of sky. 
-        
-        The full-sky S10 tSZ sims are also multiplied by 0.75 before 
+        saving and returning the catalog on the patch of sky.
+
+        The full-sky S10 tSZ sims are also multiplied by 0.75 before
         cutting them out as CAR maps for the patch of sky. Because the SZ
         catalog is not used to generate any simulations, we do not modify
-        any of its values (i.e., nothing in the SZ catalog will be 
+        any of its values (i.e., nothing in the SZ catalog will be
         multiplied by 0.75).
         """
         # if the catalog was saved, load it; otherwise, need to make it:
@@ -1691,7 +1652,7 @@ class S10Sims(lowres_sims.LowResSims):
             catalog = self.load_sim_catalog(component, **kwargs)
         else:
             cib_model = self.get_kwarg('cib_model', **kwargs)
-            if ('cib' in component.lower()) and (cib_model.lower() not in ['s10', None]): 
+            if ('cib' in component.lower()) and (cib_model is not None):
                 # generate the catalog for this `cib_model`:
                 catalog = self.generate_cib_sim_catalog(**kwargs)
             else:
@@ -1866,12 +1827,14 @@ class S10Sims(lowres_sims.LowResSims):
         # prepare to take power of the map:
         lmax = self.get_intermediate_map_power_lmax(component)
         mbb_inv = self.get_intermediate_inv_mcm(component, bin_dl=bin_dl)
-        window = self.get_intermediate_map_apod_window(component, width=self.width, height=self.height, apod_width=self.apod_width)
+        window = self.get_intermediate_map_apod_window(component, width=self.width, height=self.height, 
+                                                       apod_width=self.apod_width)
         sim = enmap.project(imap.copy(), window.shape, window.wcs) # cut out inner region of map, if necessary
         # take its power:
         self.infomsg(f"taking power of the intermediate lower-resolution map")
         t = time.time()
-        sim_power = simpower.take_sim_power(sim, window, lmax, self.binning_file(), mbb_inv, bin_dl=bin_dl, deconvolve_pixwin=False)
+        sim_power = simpower.take_sim_power(sim, window, lmax, self.binning_file(), mbb_inv, 
+                                            bin_dl=bin_dl, deconvolve_pixwin=False)
         lbin = sim_power['ells']
         binned_spectrum = sim_power['tt']
         self.infomsg(f"{utils.tmsg(time.time() - t)} to take power")
@@ -1942,35 +1905,34 @@ class S10Sims(lowres_sims.LowResSims):
     def get_lowres_sim_component_name(self, component, **kwargs):
         """Return a name used as a label for each map component in file
         names.
-        
+
         Parameters
         ----------
         component : str
             The name of the map component. The allowed values are `'ksz'`,
             `'tsz'`, `'cib'`, `'radio'`, or `'kappa'` for the kSZ, tSZ,
             CIB, radio, or lensing convergence maps, respectively.
-            
+
         Returns
         -------
         component_name : str
             A short name for the map `component` that will be used in file
             names.
-        
+
         Other Parameters
         ----------------
         **kwargs : dict
             If `component='cib'`, you may pass the name of a `cib_model`
-            (`str` or `None`) used. The default is given by the 
+            (`str` or `None`) used. The default is given by the
             `cib_model` attribute defined during initialization.
         """
         component = simutils.validate_sim_component_name(component, valid_components=si.s10_sim_components)
-        cib_model = self.get_kwarg('cib_model', **kwargs)
-        if (component == 'cib') and (cib_model not in [si.baseline_cib_model_name, None]):
-            component_name = f'cib_{cib_model}'
-        else:
-            component_name = component
+        component_name = component
+        if component == 'cib':
+            cib_model = validate_cib_model_name(self.get_kwarg('cib_model', **kwargs))
+            if cib_model == si.s10_cib_model_name:
+                component_name = f'cib_{cib_model}model'
+            elif cib_model != si.baseline_cib_model_name:
+                component_name = f'cib_{cib_model}'
         return component_name
-    
-
-
 

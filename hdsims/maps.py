@@ -4,7 +4,7 @@ import numpy as np
 import healpy as hp
 from pixell import enmap, utils as putils, wcsutils, curvedsky as cs, powspec, reproject
 from pspy import so_map, so_window
-from . import utils
+from . import utils, fgcatalogs
 
 
 def get_shape_wcs(res, ra_ctr, dec_ctr, width, height=None):
@@ -668,11 +668,44 @@ def get_pixel_num(x, y, shape):
     -------
     pix_num : int or array_like of int
         The unique integer value(s) assigned to the given pixels.
+
+    See Also
+    --------
+    get_pixel_from_num : 
+        Calculate the location of pixel(s) in a map from the pixel number.
     """
     # y = row num, x = col num
     nx = shape[-1]
     pix_num = y * nx + x
     return pix_num
+
+
+def get_pixel_from_num(pix_num, shape):
+    """Calculate the position of pixel(s) in a map of the given shape from
+    its unique integer pixel number(s).
+
+    Parameters
+    ----------
+    pix_num : int or array_like of int
+        The unique integer value(s) assigned to pixel(s) in the map.
+    shape : tuple of int
+        The shape `(Ny, Nx)` of the array holding the map data, where
+        `Ny` and `Nx` are the number of pixels along the dec. and R.A.
+        directions, respectively.
+
+    Returns
+    -------
+    x, y : int or array_like of int
+        The x (column index) and y (row index) pixel value(s).
+
+    See Also
+    --------
+    get_pixel_num : Assign a unique integer to each pixel in the map.
+    """
+    nx = shape[-1]
+    x = pix_num % nx # col
+    y = (pix_num - x) // nx # row
+    return x, y
 
 
 def add_pixel_coords_to_catalog(catalog, shape, wcs, add_pixel_num=False, 
@@ -721,6 +754,119 @@ def add_pixel_coords_to_catalog(catalog, shape, wcs, add_pixel_num=False,
     ocat[x_key], ocat[y_key] = get_pixel_positions(ras, decs, shape, wcs)
     if add_pixel_num:
         ocat[pixel_num_key] = get_pixel_num(ocat[x_key].values.astype(int), ocat[y_key].values.astype(int), shape)
+    return ocat
+
+
+def make_catalog_for_map_geometry(icat, shape, wcs, ra_key='RADeg', dec_key='decDeg', keep_pixel_cols=False):
+    """Sum the fluxes of all sources in the catalog located in the same
+    pixel of the map to produce a catalog with (at most) one source per
+    pixel.
+    
+    Parameters
+    ----------
+    icat : pandas.DataFrame
+        A catalog of sources with columns for their positions (R.A. and
+        dec., in degrees), and column(s) for their flux(es). The flux
+        column name(s) must contain `'flux'`.
+    shape : tuple of int
+        The shape `(Ny, Nx)` of the array holding the map data, where
+        `Ny` and `Nx` are the number of pixels along the dec. and R.A.
+        directions, respectively.
+    wcs : astropy.wcs.wcs.WCS
+        An astropy World Coordinate System instance for the pixelization
+        of the map.
+        
+    Returns
+    -------
+    ocat : pandas.DataFrame
+        A catalog that has, at most, one source per map pixel. The 
+        location of each source is the R.A. and dec. of its pixel center,
+        and its flux is the sum of the fluxes from all sources in the
+        input catalog that fall in to that pixel.
+        
+        
+    Other Parameters
+    ----------------
+    ra_key, dec_key : str, optional
+        The name of the column in the catalogs containing the R.A. and dec.
+        coordinates (in degrees) for each source. Defaults are `'RADeg'`
+        and `'decDeg'`, respectively.
+    keep_pixel_cols : bool, default=False
+        Include columns for the x and y pixel positions (i.e., column and 
+        row indices), named `'x_pixel'` and `'y_pixel'`, respectively,
+        corresponding to each R.A. and dec.
+        
+    See Also
+    --------
+    make_catalog_for_map_pixels
+    """
+    catalog = add_pixel_coords_to_catalog(icat.copy(), shape, wcs, add_pixel_num=True, ra_key=ra_key, dec_key=dec_key)
+    # make sure all sources in catalog fall into a pixel in the map:
+    catalog = catalog[catalog['x_pixel'].between(0, shape[1]-1) & catalog['y_pixel'].between(0, shape[0]-1)]
+    # only keep columns for the fluxes and the pixel positions of each source:
+    flux_cols = [col for col in catalog.columns.values if ('flux' in col.lower())]
+    catalog_cols = [*flux_cols, 'pixel_num']
+    # separate sources that occupy their own pixel vs. sources that share a pixel with others:
+    srcs_in_own_pixel = catalog[~catalog.duplicated(subset='pixel_num', keep=False)][catalog_cols].copy()
+    srcs_in_shared_pixels = catalog[catalog.duplicated(subset='pixel_num', keep=False)][catalog_cols].copy()
+    # sum the fluxes of the sources in shared pixels:
+    combined_srcs_in_shared_pixels = srcs_in_shared_pixels.groupby('pixel_num', as_index=False).sum()
+    # put the catalog back together, and add the RA, dec of each pixel center:
+    ocat = fgcatalogs.combine_catalogs([srcs_in_own_pixel, combined_srcs_in_shared_pixels])
+    ocat = ocat.sort_values('pixel_num').reset_index(drop=True)
+    ocat['x_pixel'], ocat['y_pixel'] = get_pixel_from_num(ocat['pixel_num'].values, shape)
+    ocat[ra_key], ocat[dec_key] = get_coord_positions(ocat['x_pixel'].values, ocat['y_pixel'].values, shape, wcs)
+    ocat_cols = [ra_key, dec_key, *flux_cols]
+    if keep_pixel_cols:
+        ocat_cols = [*ocat_cols, 'x_pixel', 'y_pixel', 'pixel_num']
+    ocat = ocat[ocat_cols].copy()
+    return ocat
+
+
+def make_catalog_for_map_pixels(icat, pixel_res, ra_ctr, dec_ctr, width, height, ra_key='RADeg', dec_key='decDeg', keep_pixel_cols=False):
+    """Sum the fluxes of all sources in the catalog located in the same
+    pixel of the map to produce a catalog with (at most) one source per
+    pixel.
+    
+    Parameters
+    ----------
+    icat : pandas.DataFrame
+        A catalog of sources with columns for their positions (R.A. and
+        dec., in degrees), and column(s) for their flux(es). The flux
+        column name(s) must contain `'flux'`.
+    pixel_res : float
+        The resolution of the map pixels, in arcminutes.
+    ra_ctr, dec_ctr : float
+        The R.A. and dec. coordinates of the map center, in degrees.
+    width, height : float
+        The width and height of the map, in degrees.
+        
+    Returns
+    -------
+    ocat : pandas.DataFrame
+        A catalog that has, at most, one source per map pixel. The 
+        location of each source is the R.A. and dec. of its pixel center,
+        and its flux is the sum of the fluxes from all sources in the
+        input catalog that fall in to that pixel.
+        
+        
+    Other Parameters
+    ----------------
+    ra_key, dec_key : str, optional
+        The name of the column in the catalogs containing the R.A. and dec.
+        coordinates (in degrees) for each source. Defaults are `'RADeg'`
+        and `'decDeg'`, respectively.
+    keep_pixel_cols : bool, default=False
+        Include columns for the x and y pixel positions (i.e., column and 
+        row indices), named `'x_pixel'` and `'y_pixel'`, respectively,
+        corresponding to each R.A. and dec.
+        
+    See Also
+    --------
+    make_catalog_for_map_geometry
+    """
+    shape, wcs = get_shape_wcs(pixel_res, ra_ctr, dec_ctr, width, height=height)
+    ocat = make_catalog_for_map_geometry(icat, shape, wcs, ra_key=ra_key, dec_key=dec_key, keep_pixel_cols=keep_pixel_cols)
     return ocat
 
 
@@ -778,22 +924,18 @@ def make_src_map(shape, wcs, catalogs, freq, ra_key='RADeg', dec_key='decDeg', f
         errmsg = f"Invalid `flux_unit`: '{flux_unit}'. The `flux_unit` must be 'Jy' or 'mJy'."
         raise ValueError(errmsg)
     flux_unit_name = 'Jy' if (flux_unit.lower() == 'jy') else 'mJy'
-    flux_unit_factor = 1 if (flux_unit_name == 'Jy') else 1e-3 
+    flux_unit_factor = 1 if (flux_unit_name == 'Jy') else 1e-3
     flux_key = f'{flux_key_root}{flux_unit_name}'
     # place sources on map in units of Jy:
     src_map = enmap.zeros(shape, wcs)
     for cat in catalogs:
-        # get pixel location for each source position
-        catalog = add_pixel_coords_to_catalog(cat.copy(), shape, wcs, ra_key=ra_key, dec_key=dec_key)
-        # only keep sources within the patch:
-        catalog = catalog[catalog['x_pixel'].between(0, shape[-1]-1)]
-        catalog = catalog[catalog['y_pixel'].between(0, shape[-2]-1)]
-        # put each source on the map, in units of Jy:
-        for idx, src in catalog.iterrows():
-            x = int(src['x_pixel'])
-            y = int(src['y_pixel'])
-            flux = src[flux_key] * flux_unit_factor
-            src_map[y, x] += flux
+        if len(cat) > 0:
+            catalog = make_catalog_for_map_geometry(cat.copy(), shape, wcs, ra_key=ra_key, 
+                                                    dec_key=dec_key, keep_pixel_cols=True)
+            x_pixels = catalog['x_pixel'].values.astype(int)
+            y_pixels = catalog['y_pixel'].values.astype(int)
+            fluxes = catalog[flux_key].values * flux_unit_factor
+            src_map[y_pixels, x_pixels] = fluxes
     src_map /= enmap.pixsizemap(shape, wcs) # convert to Jy / str
     src_map = utils.Jy_per_str_to_uK(src_map, freq) # convert to uK
     return src_map
@@ -860,23 +1002,21 @@ def make_src_maps(shape, wcs, multifreq_catalog, freqs,
     flux_unit_name = 'Jy' if (flux_unit.lower() == 'jy') else 'mJy'
     flux_unit_factor = 1 if (flux_unit_name == 'Jy') else 1e-3
     flux_keys = {freq: f'{flux_key_root}{flux_unit_name}_{freq}GHz' for freq in freqs}
-    # get pixel location for each source position:
-    catalog = add_pixel_coords_to_catalog(multifreq_catalog.copy(), shape, wcs, ra_key=ra_key, dec_key=dec_key)
-    # only keep sources within the patch:
-    catalog = catalog[catalog['x_pixel'].between(0, shape[-1]-1)]
-    catalog = catalog[catalog['y_pixel'].between(0, shape[-2]-1)]
-    # put each source on the map, in units of Jy:
+    # make empty maps:
     src_maps = {freq: enmap.zeros(shape, wcs) for freq in freqs}
-    for idx, src in catalog.iterrows():
-        x = int(src['x_pixel'])
-        y = int(src['y_pixel'])
+    if len(multifreq_catalog) > 0:
+        # get a catalog with one source per map pixel:
+        catalog = make_catalog_for_map_geometry(multifreq_catalog.copy(), shape, wcs,
+                                                ra_key=ra_key, dec_key=dec_key, keep_pixel_cols=True)
+        x_pixels = catalog['x_pixel'].values.astype(int)
+        y_pixels = catalog['y_pixel'].values.astype(int)
+        # put the sources on the map at each frequency:
         for freq in freqs:
             flux_key = flux_keys[freq]
-            flux = src[flux_key] * flux_unit_factor
-            src_maps[freq][y, x] += flux
-    for freq in freqs:
-        src_maps[freq] /= enmap.pixsizemap(shape, wcs) # convert to Jy / str
-        src_maps[freq] = utils.Jy_per_str_to_uK(src_maps[freq], freq) # convert to uK
+            fluxes = catalog[flux_key].values * flux_unit_factor
+            src_maps[freq][y_pixels, x_pixels] = fluxes # units of Jy
+            src_maps[freq] /= enmap.pixsizemap(shape, wcs) # convert to Jy / str
+            src_maps[freq] = utils.Jy_per_str_to_uK(src_maps[freq], freq) # convert to uK
     return src_maps
 
 

@@ -286,9 +286,9 @@ class HDSimsGen(s10sims.S10Sims):
         else:
             if self.get_camb_cosmo_params() is not None: # calculate the theory for the given cosmology:
                 pars = self.get_cambparams_for_sim()
-                theo = simutils.calculate_camb_unlensed(camb_params=pars, lmax=self.lmax4theo)
+                theo = simutils.calculate_camb_theory(camb_params=pars, lmax=self.lmax4theo)
             elif self.lmax4theo != si.lmax4theo: # calculate w/ default cosmology but different lmax
-                theo = simutils.calculate_camb_unlensed(lmax=self.lmax4theo)
+                theo = simutils.calculate_camb_theory(lmax=self.lmax4theo)
             else: # load the default theory spectra:
                 theo = simutils.load_camb_theory()
             header_info = ("unlensed CMB spectra as C_ell (no multiplicative ell-factors) in uK^2;"
@@ -1300,10 +1300,8 @@ class HDSimsGen(s10sims.S10Sims):
         t_start = time.time()
         component = 'radio'
         freqs = simutils.validate_sim_freqs(self.get_kwarg('freqs', **kwargs))
-        # to make the point source sims, we loop through rows of the
-        # multi-frequency catalog, allowing us to generate sims at all
-        # frequencies simultaneously ; so check if all sims (for each
-        # frequency) were saved, and if not, just make them all.
+        # check if all sims (for each frequency) were saved, and if not,
+        # just make them all:
         sim_fnames = {freq: self.get_signal_sim_fname(component, freq=freq, **kwargs) for freq in freqs}
         sims_are_saved = all([os.path.exists(sim_fnames[freq]) for freq in freqs])
         if not sims_are_saved: 
@@ -1371,14 +1369,12 @@ class HDSimsGen(s10sims.S10Sims):
         t_start = time.time()
         component = 'cib'
         freqs = simutils.validate_sim_freqs(self.get_kwarg('freqs', **kwargs))
-        # to make the point source sims, we loop through rows of the
-        # multi-frequency catalog, allowing us to generate sims at all
-        # frequencies simultaneously ; so check if all sims (for each
-        # frequency) were saved, and if not, just make them all.
+        # check if all sims (for each frequency) were saved, and if not,
+        # just make them all:
         sim_fnames = {freq: self.get_signal_sim_fname(component, freq=freq, **kwargs) for freq in freqs}
         sims_are_saved = all([os.path.exists(sim_fnames[freq]) for freq in freqs])
         if not sims_are_saved: 
-            # get the catalog of all radio galaxies within the area given
+            # get the catalog of all cib galaxies within the area given
             # by the `padded2x_width` and `padded2x_height` attributes, 
             # place them on the high-resolution maps at each frequency,
             # convolve the pixel window, and cut out the inner un-apodized

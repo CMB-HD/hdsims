@@ -65,11 +65,12 @@ s10_kappa_res = hp.nside2resol(s10_kappa_nside, arcmin=True)
 s10_sim_components = ['kappa', 'ksz', 'tsz', 'cib', 'radio']
 s10_ksz_map_freq = 90 # frequency (GHz) of the full-sky S10 kSZ map used (only need one b/c kSZ is frequency-independent)
 
-# HD CIB sim models:
+# CIB models for HD sims:
 baseline_cib_model_name = 'baseline'
 alternative_cib_model_name = 'alternative'
-cib_model_names = [baseline_cib_model_name, alternative_cib_model_name]
-cib_model_pixel_res = {baseline_cib_model_name: s10_res, alternative_cib_model_name: 0.25}
+s10_cib_model_name = 's10'
+cib_model_names = [baseline_cib_model_name, alternative_cib_model_name, s10_cib_model_name]
+cib_model_pixel_res = {baseline_cib_model_name: s10_res, alternative_cib_model_name: 0.25, s10_cib_model_name: hd_res}
 cib_gauss_sigma_pix_frac = 0.2  # add Gaussian scatter to positions w/ sigma = 20% of CIB model pixel size 
 cib_catalog_seed = 0 # seed used to add scatter
 

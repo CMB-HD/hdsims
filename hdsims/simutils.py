@@ -285,43 +285,6 @@ def validate_map_components(components, valid_components=si.all_components):
     return components
 
 
-def validate_cib_model_name(cib_model, valid_model_names=[*si.cib_model_names, 's10']):
-    """Verify that the name of the given CIB model is a valid name.
-    
-    The 'CIB model' refers to the the CIB catalog for the simulations is
-    generated from the original full-sky catalog of the Sehgal et. al. 
-    (arXiv:0908.0540) simulations. See arXiv:XXXX.XXXXX (!! TODO:LINK2PAPER !!)
-    for further details.
-    
-    Parameters
-    ----------
-    cib_model : str
-        The name of the CIB model.
-    valid_model_names : list of str, optional
-        A list of valid CIB model names. The list includes `'s10'` (which 
-        refers to the case where the original S10 catalog is not modified)
-        and the default list of CIB model names in 
-        `hdsims.siminfo.cib_model_names`.
-        
-    Returns
-    -------
-    cib_model : str
-        The name of the CIB model. Will be all lowercase.
-        
-    Raises
-    ------
-    ValueError
-        If the CIB model name is not in the list of `valid_model_names`.
-        
-    See Also
-    --------
-    hdsims.siminfo.cib_model_names : The list of valid CIB model names.
-    """
-    if cib_model.lower() not in valid_model_names:
-        raise ValueError(f"Unknown `{cib_model = }`. The CIB model name must be one of {valid_model_names}.")
-    return cib_model.lower()
-
-
 def separate_component_list(components):
     """Return separate lists of the CMB, foreground, and lensing 
     convergence component name(s) in the given list.
@@ -625,9 +588,9 @@ def get_cambparams_for_sim(lmax=si.lmax4theo, cosmo_params=None):
     return pars
 
 
-def calculate_camb_unlensed(lmax=si.lmax4theo, cosmo_params=None, camb_params=None, camb_results=None):
-    """Calculate the CAMB theory unlensed CMB and lensing convergence
-    power spectra.
+def calculate_camb_theory(lmax=si.lmax4theo, cosmo_params=None, camb_params=None, camb_results=None, cmb_type='unlensed'):
+    """Calculate the CAMB theory CMB and lensing convergence power spectra.
+    By default, the unlensed CMB power spectra will be calculated.
 
     Parameters
     ----------
@@ -644,6 +607,9 @@ def calculate_camb_unlensed(lmax=si.lmax4theo, cosmo_params=None, camb_params=No
     camb_results : camb.results.CAMBdata
         A CAMB results instance to use for the calculation. If passed, the
         `cosmo_params` and `camb_params` parameters will be ignored.
+    cmb_type : str, default='unlensed'
+        By default, the unlensed CMB power spectra are calculated. Pass
+        `cmb_type='lensed'` to calculate the lensed CMB power spectra.
 
     Returns
     -------
@@ -652,9 +618,9 @@ def calculate_camb_unlensed(lmax=si.lmax4theo, cosmo_params=None, camb_params=No
         and values:
         - `'ells'`: array of each integer multipole between zero and the
             maximum given by the `lmax` parameter.
-        - `'tt'`, `'te'`, `'ee'`, `'bb'`: unlensed CMB TT, TE, EE, and BB
-            power spectra (in units of uK^2 as C_ell's, i.e. not
-            multiplied by any multipole factors).
+        - `'tt'`, `'te'`, `'ee'`, `'bb'`: CMB TT, TE, EE, and BB power
+            spectra (in units of uK^2 as C_ell's, i.e. not multiplied by
+            any multipole factors).
         - `'kk'`: the lensing convergence power spectrum, i.e.
               C_L^kappakappa = L^2 * (L+1)^2 * C_L^phiphi / 4.
     """
@@ -663,10 +629,11 @@ def calculate_camb_unlensed(lmax=si.lmax4theo, cosmo_params=None, camb_params=No
             camb_params = get_cambparams_for_sim(lmax=lmax, cosmo_params=cosmo_params)
         camb_results = camb.get_results(camb_params)
     theo = {'ells': np.arange(lmax+1)}
-    # unlensed cmb:
+    # cmb:
+    cmb_key = 'unlensed_total' if (cmb_type == 'unlensed') else 'total'
     powers = camb_results.get_cmb_power_spectra(camb_params, CMB_unit='muK', raw_cl=True, lmax=lmax)
     for i, s in enumerate(['tt', 'ee', 'bb', 'te']):
-        theo[s] = powers['unlensed_total'][:,i].copy()
+        theo[s] = powers[cmb_key][:,i].copy()
         theo[s][:2] = 0
     # lensing convergence:
     theo['kk'] = camb_results.get_lens_potential_cls(lmax=lmax)[:,0] * 2 * np.pi / 4
