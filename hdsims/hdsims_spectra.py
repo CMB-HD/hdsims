@@ -6,7 +6,7 @@ import camb
 import numpy as np
 from scipy import interpolate
 from pixell import enmap
-from . import utils, siminfo as si, simpower, simutils, hdsimsgen
+from . import utils, siminfo as si, simpower, simutils, hdsimsgen, maps
 
 
 class HDSimsSpectra(hdsimsgen.HDSimsMaps):
@@ -232,6 +232,67 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         return np.loadtxt(self.bin_edges_fname())
 
 
+    def _patch_info_for_spectra(self, include_ra_ctr=True, **kwargs):
+        """Return a string describing a patch of sky that is smaller than
+        the patch of sky defined during initialization.
+
+        Parameters
+        ----------
+        include_ra_ctr : bool, default=True
+            Include information about the R.A. coordinate of the map
+            center in the returned `patch_info` string.
+        **kwargs : dict
+            Optional keyword arguments used to specify the location and
+            size of a patch of sky. By default, the `shape` and `wcs`
+            attributes defined during initialization are used (so the
+            returned `patch_info` will be `None`).
+            Otherwise, the options are:
+            (1) The `width` and `height` (`int` or `float`) of the patch
+                of sky (centered at R.A. and dec. given by the `ra_ctr`
+                and `dec_ctr` attributes); or
+            (2) A `shape` (`tuple` of `int`) and `wcs` (instance of
+                `astropy.wcs.wcs.WCS`) pair to define the geometry of the
+                patch of sky.
+
+        Returns
+        -------
+        patch_info : str or None
+            A string describing the location and size of the patch of sky,
+            or `None` if the map geometry is the same as the geometry
+            defined during initialization.
+
+        Notes
+        -----
+        The string is used in filenames for the power spectra (and the
+        mode-decouling matrices used to calculate the spectra) of maps
+        cut out from the region defined during initialization.
+
+        The option `include_ra_ctr` is provided because the pixel size
+        does not change with R.A., so the mode-decoupling matrices only
+        depend on the map size and center dec. (and apodization width,
+        binning file, etc).
+        """
+        kwargs = self.get_kwargs_with_defaults(**kwargs)
+        shape = kwargs['shape']
+        wcs = kwargs['wcs']
+        if not maps.map_geometry_is_equal(shape, wcs, self.shape, self.wcs):
+            if not maps.map_resolution_is_equal(shape, wcs, self.shape, self.wcs):
+                res = maps.get_map_resolution(shape, wcs)
+                raise ValueError(f"All maps must have the same resolution of {simutils.round_str(self.res)} arcminutes;"
+                                 f" the map with `{shape = }` and `{wcs = }` has a resolution of"
+                                 f" {simutils.round_str(res)} arcminutes")
+            ra_ctr, dec_ctr, width, height = maps.get_map_ctr_extent(shape, wcs)
+            size_info = f'{simutils.round_str(width,n=3)}x{simutils.round_str(height,n=3)}deg'
+            if include_ra_ctr:
+                ctr_info = f'ra{simutils.round_str(ra_ctr,n=3)}dec{simutils.round_str(dec_ctr,n=3)}'
+            else:
+                ctr_info = f'dec{simutils.round_str(dec_ctr,n=3)}'
+            patch_info = f'{size_info}_{ctr_info}'
+        else:
+            patch_info = None
+        return patch_info
+
+
     def get_mode_coupling_fnames(self, bin_dl=False, beam=False, freq=None, **kwargs):
         """Return the file name(s) of the inverse mode-coupling matrix
         and the corresponding binning matrix.
@@ -272,6 +333,13 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
               spectra calculations.
             - `pol` (`bool`): Whether the map whose power spectrum is
               being measured has both temperature and polarization.
+            - `apod_width` (`float`): The width (in degrees) of the region
+              along each edge of the map that will be apodized before
+              calculating its power spectrum.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+              `astropy.wcs.wcs.WCS`): The geometry of the patch of sky
+              used for power spectra (e.g., if taking power of a map cut
+              out from the larger simulated region).
             The default values are given by the corresponding attributes
             defined during initialization.
 
@@ -281,19 +349,23 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
                             binning matrices.
         hdsims.simpower.load_mode_coupling_files : Load the files
         """
-        kwargs = self.get_kwargs_with_defaults(**kwargs)
         if beam:
             if freq is None:
-                raise ValueError(f"`{beam = }` and `{freq = }`. "
-                                 "To correct for the beam, you must pass a frequency (in GHz).")
+                raise ValueError(f"`{beam = }` and `{freq = }`. To correct for the beam,"
+                                 " you must pass a frequency (in GHz).")
             freq = simutils.validate_sim_freq(freq)
             beam_fwhm = si.beam_fwhm[freq]
         else:
             beam_fwhm = None
-        mcm_fname, bbl_fname = simutils.get_mode_coupling_fnames(self.apod_width, kwargs['lmax'], bin_dl=bin_dl,
+        patch_info = self._patch_info_for_spectra(include_ra_ctr=False, **kwargs)
+        if (self.bin_info is not None) or (patch_info is not None):
+            fname_info = '_'.join([finfo for finfo in [self.bin_info, patch_info] if (finfo is not None)])
+        else:
+            fname_info = None
+        kwargs = self.get_kwargs_with_defaults(**kwargs)
+        mcm_fname, bbl_fname = simutils.get_mode_coupling_fnames(kwargs['apod_width'], kwargs['lmax'], bin_dl=bin_dl,
                                                                  pol=kwargs['pol'], beam_fwhm=beam_fwhm,
-                                                                 fname_info=self.bin_info,
-                                                                 binning_dir=self.binning_dir())
+                                                                 fname_info=fname_info, binning_dir=self.binning_dir())
         return mcm_fname, bbl_fname
 
 
@@ -339,6 +411,13 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
               spectra calculations.
             - `pol` (`bool`): Whether the map whose power spectrum is
               being measured has both temperature and polarization.
+            - `apod_width` (`float`): The width (in degrees) of the region
+              along each edge of the map that will be apodized before
+              calculating its power spectrum.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+              `astropy.wcs.wcs.WCS`): The geometry of the patch of sky
+              used for power spectra (e.g., if taking power of a map cut
+              out from the larger simulated region).
             The default values are given by the corresponding attributes
             defined during initialization.
 
@@ -348,7 +427,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         hdsims.simpower.calc_mode_coupling
         """
         kwargs = self.get_kwargs_with_defaults(**kwargs)
-        window = self.get_apod_window(save=True)
+        window = self.get_apod_window(save=True, **kwargs)
         binning_file = self.binning_file()
         pol = kwargs['pol']
         lmax = kwargs['lmax']
@@ -415,6 +494,13 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
               spectra calculations.
             - `pol` (`bool`): Whether the map whose power spectrum is
               being measured has both temperature and polarization.
+            - `apod_width` (`float`): The width (in degrees) of the region
+              along each edge of the map that will be apodized before
+              calculating its power spectrum.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+              `astropy.wcs.wcs.WCS`): The geometry of the patch of sky
+              used for power spectra (e.g., if taking power of a map cut
+              out from the larger simulated region).
             The default values are given by the corresponding attributes
             defined during initialization.
 
@@ -502,6 +588,13 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
               spectra calculations.
             - `pol` (`bool`): Whether the map whose power spectrum is
               being measured has both temperature and polarization.
+            - `apod_width` (`float`): The width (in degrees) of the region
+              along each edge of the map that will be apodized before
+              calculating its power spectrum.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+              `astropy.wcs.wcs.WCS`): The geometry of the patch of sky
+              used for power spectra (e.g., if taking power of a map cut
+              out from the larger simulated region).
             The default values are given by the corresponding attributes
             defined during initialization.
 
@@ -519,11 +612,10 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         The units of the power spectrum depends on the units of the `imap`.
         """
         if not (bin_cl or bin_dl):
-            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. "
-                             "You must set at least one of `bin_cl` or `bin_dl` to `True`.")
+            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. At least one of `bin_cl` or `bin_dl` must be `True`.")
         lmax = int(round(self.get_kwarg('lmax', **kwargs)))
         has_pol = len(imap.shape) > 2
-        window = self.get_apod_window(save=True)
+        window = self.get_apod_window(save=True, **kwargs)
         mbb_inv_dict = {}
         spec_types = []
         if bin_cl:
@@ -538,7 +630,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
                                                         binning_matrix=False, **kwargs)
             if (not has_pol) and ('spin0xspin0' in mbb_inv_dict['dl']):
                 mbb_inv_dict['dl'] = mbb_inv_dict['dl']['spin0xspin0']
-        imap = enmap.project(imap.copy(), self.shape, self.wcs)
+        imap = enmap.project(imap.copy(), window.shape, window.wcs)
         sim_power = simpower.calc_sim_power(imap, window, lmax, self.binning_file(), mbb_inv_dict,
                                             bin_cl=bin_cl, bin_dl=bin_dl, deconvolve_pixwin=pixwin)
         return sim_power
@@ -577,10 +669,18 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
 
             The other keyword arguments are:
             - `lmax` (`int`) : The maximum multipole used when calculating
-                the power spectrum.
+              the power spectrum.
+            - `apod_width` (`float`): The width (in degrees) of the region
+              along each edge of the map that will be apodized before
+              calculating its power spectrum.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+              `astropy.wcs.wcs.WCS`): The geometry of the patch of sky
+              used for power spectra (e.g., if taking power of a map cut
+              out from the larger simulated region).
             - If the `component` is `'cmb'` or `'unlensed_cmb'`, you may
-                also pass keyword arguments for `cmb_seed` (`int`) and
-                `pol` (`bool`).
+              also pass keyword arguments for `cmb_seed` (`int`) and
+              `pol` (`bool`).
+
             The defaults are given by the corresponding attributes, defined
             during initialization.
 
@@ -591,15 +691,22 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         """
         component = simutils.validate_sim_component_name(component)
         lmax = int(round(self.get_kwarg('lmax', **kwargs)))
-        # get a string to use in filename for this component:
         component_info = self.get_component_name(component, **kwargs)
+        patch_info = self._patch_info_for_spectra(**kwargs)
+        apod_width = self.get_kwarg('apod_width', **kwargs)
         spec_type = 'dl' if bin_dl else 'cl'
-        # get the filename:
         fname_info = []
+        # map frequency and compoments:
         if simutils.has_freq_dependent_component(component):
             freq = simutils.validate_sim_freq(freq)
             fname_info.append(f'{freq:03d}')
         fname_info.append(component_info)
+        # map geometry:
+        if patch_info is not None:
+            fname_info.append(patch_info)
+        # apodization, binning, etc:
+        if not np.isclose(apod_width, self.apod_width):
+            fname_info.append(f'apod{simutils.round_str(apod_width)}deg')
         if lmax != self.lmax:
             fname_info.append(f"lmax{lmax}")
         if self.bin_info is not None:
@@ -671,8 +778,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
             bin_cl = True
             bin_dl = False
         elif not (bin_cl or bin_dl):
-            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. "
-                             "You must set at least one of `bin_cl` or `bin_dl` to `True`.")
+            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. At least one of `bin_cl` or `bin_dl` must be `True`.")
 
         pol = self.get_kwarg('pol', **kwargs)
         cols = simutils.get_spectra_keys(component, pol=pol)
@@ -771,8 +877,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
             bin_cl = True
             bin_dl = False
         elif not (bin_cl or bin_dl):
-            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. "
-                             "You must set at least one of `bin_cl` or `bin_dl` to `True`.")
+            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. At least one of `bin_cl` or `bin_dl` must be `True`.")
 
         spec_types = [] # cl or dl
         fnames = {} # save cl and dl separately
@@ -863,10 +968,17 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
             `hdsims.lowres_sims.LowResSims` and its derived classes), the
             recognized keyword arguments are:
             - `lmax` (`int`) : The maximum multipole used when calculating
-                the power spectra.
+              the power spectrum.
+            - `apod_width` (`float`): The width (in degrees) of the region
+              along each edge of the map that will be apodized before
+              calculating its power spectrum.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+              `astropy.wcs.wcs.WCS`): The geometry of the patch of sky
+              used for power spectra (e.g., if taking power of a map cut
+              out from the larger simulated region).
             - If the `component` is `'cmb'` or `'unlensed_cmb'`, you may
-                also pass keyword arguments for `cmb_seed` (`int`) and
-                `pol` (`bool`).
+              also pass keyword arguments for `cmb_seed` (`int`) and
+              `pol` (`bool`).
             The defaults are given by the corresponding attributes, defined
             during initialization.
 
@@ -933,7 +1045,14 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
               The default is given by the `noise_seeds` (using the `freq`
               as the key) attribute defined during initialization.
             - `lmax` (`int`) : The maximum multipole used when calculating
-                the power spectra.
+              the power spectra.
+            - `apod_width` (`float`) : The width (in degrees) of the region
+              along each edge of the map that will be apodized before
+              calculating its power spectrum.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+              `astropy.wcs.wcs.WCS`) : The geometry of the patch of sky
+              used for power spectra (e.g., if taking power of a map cut
+              out from the larger simulated region).
 
         Notes
         -----
@@ -946,6 +1065,8 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
             fname = self.get_signal_sim_power_fname(components[0], freq=freq, bin_dl=bin_dl, **kwargs)
         else:
             lmax = int(round(self.get_kwarg('lmax', **kwargs)))
+            patch_info = self._patch_info_for_spectra(**kwargs)
+            apod_width = self.get_kwarg('apod_width', **kwargs)
             fname_info = []
             # check if we need the frequency; if so, add it to file name:
             if simutils.has_freq_dependent_component(components) or beam or noise:
@@ -959,6 +1080,10 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
             if noise:
                 noise_seed = self._get_noise_seed(freq, **kwargs)
                 fname_info.append(f'noise{simutils.round_str(si.noise_level[freq])}uKarcmin{noise_seed:04d}')
+            if patch_info is not None:
+                fname_info.append(patch_info)
+            if not np.isclose(apod_width, self.apod_width):
+                fname_info.append(f'apod{simutils.round_str(apod_width)}deg')
             if lmax != self.lmax:
                 fname_info.append(f"lmax{lmax}")
             if self.bin_info is not None:
@@ -1033,8 +1158,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
             bin_cl = True
             bin_dl = False
         elif not (bin_cl or bin_dl):
-            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. "
-                             "You must set at least one of `bin_cl` or `bin_dl` to `True`.")
+            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. At least one of `bin_cl` or `bin_dl` must be `True`.")
 
         pol = self.get_kwarg('pol', **kwargs)
         spec_types = [] # cl or dl
@@ -1139,8 +1263,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
             bin_cl = True
             bin_dl = False
         elif not (bin_cl or bin_dl):
-            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. "
-                             "You must set at least one of `bin_cl` or `bin_dl` to `True`.")
+            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. At least one of `bin_cl` or `bin_dl` must be `True`.")
 
         spec_types = [] # cl or dl
         fnames = {} # save cl and dl separately
@@ -1240,6 +1363,13 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
               map. The default is given by the `map_components` attribute.
             - `lmax` (`int`) : The maximum multipole used when calculating
               the power spectra.
+            - `apod_width` (`float`) : The width (in degrees) of the region
+              along each edge of the map that will be apodized before
+              calculating its power spectrum.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+              `astropy.wcs.wcs.WCS`) : The geometry of the patch of sky
+              used for power spectra (e.g., if taking power of a map cut
+              out from the larger simulated region).
             - If the map contains the CMB (either `'cmb'` or `'unlensed_cmb'`
               are in the list of `components`), you may also pass keyword
               arguments for `cmb_seed` (`int`) and `pol` (`bool`).
@@ -1304,6 +1434,13 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
               Otherwise it only includes the temperature map.
             - `lmax` (`int`) : The maximum multipole used when calculating
               the power spectra.
+            - `apod_width` (`float`) : The width (in degrees) of the region
+              along each edge of the map that will be apodized before
+              calculating its power spectrum.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+              `astropy.wcs.wcs.WCS`) : The geometry of the patch of sky
+              used for power spectra (e.g., if taking power of a map cut
+              out from the larger simulated region).
             The defaults are given by the corresponding attributes, defined
             during initialization.
         """
@@ -1311,6 +1448,8 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         spec_type = 'dl' if bin_dl else 'cl'
         lmax = int(round(self.get_kwarg('lmax', **kwargs)))
         noise_seed = self._get_noise_seed(freq, **kwargs)
+        apod_width = self.get_kwarg('apod_width', **kwargs)
+        patch_info = self._patch_info_for_spectra(**kwargs)
         pol_info = 'TQU' if self.get_kwarg('pol', **kwargs) else 'T'
         noise_info = f'noise{simutils.round_str(si.noise_level[freq])}uKarcmin{noise_seed:04d}{pol_info}'
         fname_parts = [f'{freq:03d}', noise_info]
@@ -1320,6 +1459,10 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
                 fname_parts.append('pixwin')
             if beam:
                 fname_parts.append(f'beam{simutils.round_str(si.beam_fwhm[freq])}arcmin')
+        if patch_info is not None:
+            fname_parts.append(patch_info)
+        if not np.isclose(apod_width, self.apod_width):
+            fname_parts.append(f'apod{simutils.round_str(apod_width)}deg')
         if lmax != self.lmax:
             fname_parts.append(f"lmax{lmax}")
         if self.bin_info is not None:
@@ -1378,8 +1521,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         """
         pol = self.get_kwarg('pol', **kwargs)
         if not (bin_cl or bin_dl):
-            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. "
-                             "You must set at least one of `bin_cl` or `bin_dl` to `True`.")
+            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. At least one of `bin_cl` or `bin_dl` must be `True`.")
 
         spec_types = [] # cl or dl
         fnames = {} # cl and dl saved separately
@@ -1465,8 +1607,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
             Try to load the power spectra before calculating it.
         """
         if not (bin_cl or bin_dl):
-            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. "
-                             "You must set at least one of `bin_cl` or `bin_dl` to `True`.")
+            raise ValueError(f"`{bin_cl = }` and `{bin_dl = }`. At least one of `bin_cl` or `bin_dl` must be `True`.")
         spec_types = [] # cl or dl
         fnames = {} # cl and dl saved separately
         if bin_cl:
@@ -1548,6 +1689,13 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
               Otherwise it only includes the temperature map.
             - `lmax` (`int`) : The maximum multipole used when calculating
               the power spectra.
+            - `apod_width` (`float`) : The width (in degrees) of the region
+              along each edge of the map that will be apodized before
+              calculating its power spectrum.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+              `astropy.wcs.wcs.WCS`) : The geometry of the patch of sky
+              used for power spectra (e.g., if taking power of a map cut
+              out from the larger simulated region).
             The defaults are given by the corresponding attributes, defined
             during initialization.
 
@@ -1608,11 +1756,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         Other Parameters
         ----------------
         **kwargs : dict
-            The additional optional keyword arguments are:
-            - `pol` (`bool`) : Whether to bin temperature and polarization
-                               power spectra.
-            - `lmax` (`int`) : The maximum multipole used when calculating
-                               the binning matrix.
+            Additional keyword arguments passed to `get_mode_coupling`.
 
         See Also
         --------
@@ -1707,7 +1851,8 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         pars = self.get_cambparams_for_sim()
 
         # take power of the kappa map
-        kappa_power = self.get_signal_sim_power('kappa', save=save, **kwargs)
+        kappa_power_kwargs = {**kwargs, 'shape': self.shape, 'wcs': self.wcs, 'apod_width': self.apod_width}
+        kappa_power = self.get_signal_sim_power('kappa', save=save, **kappa_power_kwargs)
         lbin = kappa_power['ells']
         sim_clkk = kappa_power['clkk']
         # on scales that are not measured by the kappa sim power spectrum,
@@ -1843,8 +1988,8 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
               simulations accepted by `get_intermediate_sim_power`.
             - `lmax` (`int`) : The maximum multipole used when calculating
               the binning matrix.
-            The `pol` keyword argument (used by the `bin_theory` method)
-            will be ignored if it is passed.
+            The `pol`, `apod_width`, `shape`, and `wcs` keyword arguments
+            (used by the `bin_theory` method) will be ignored if passed.
 
         Notes
         -----
@@ -1877,6 +2022,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         component = simutils.validate_sim_component_name(component, valid_components=self.theo_components)
         dl = False if (component == 'kappa') else dl
         spec_type = 'dl' if dl else 'cl'
+        kwargs = {**kwargs, 'shape': self.shape, 'wcs': self.wcs, 'apod_width': self.apod_width}
         if simutils.has_cmb(component) and binned:
             # we want to bin temperaure & polarization theory spectra:
             kwargs['pol'] = True
@@ -1923,7 +2069,6 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
                 theory[f'{spec_type}{key}'] = theo[key] * lfact
 
         return theory
-
 
 
     def calculate_hd_sims_powerspectra(self, save_intermediate_map_power=False, save_intermediate_maps=False,  **kwargs):
@@ -1975,9 +2120,15 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
                 `'unlensed_cmb'` is in the list of `components`.
             - `lmax` (`int`): The maximum multipole used when calculating
                 the power spectra.
-            - If the list of `components` includes `'cmb'` or
-                `'unlensed_cmb'`, you may also pass keyword arguments for
-                `cmb_seed` (`int`) and `pol` (`bool`).
+            - `apod_width` (`float`) : The width (in degrees) of the
+                region along each edge of the map that will be apodized
+                before calculating its power spectrum. Ignored when
+                calculating theory power spectra.
+            - A pair of `shape` (`tuple` of `int`) and `wcs` (instance of
+                `astropy.wcs.wcs.WCS`) : The geometry of the patch of sky
+                used for power spectra (e.g., if taking power of a map cut
+                out from the larger simulated region). Ignored when
+                calculating theory power spectra.
 
             The defaults are given by the corresponding attributes, defined
             during initialization.

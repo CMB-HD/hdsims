@@ -24,7 +24,7 @@ class HDSimsGen(s10sims.S10Sims):
     lower-resolution counterparts.
     
     By default (i.e., with all parameters set to their default values),
-    this class will generate the simulations used in MacInnis et. al. 2025
+    this class will generate the simulations used in MacInnis et. al. 2026
     (arXiv:XXXX.XXXX !! TODO !!), which are also available on LAMBDA
     (!! TODO : LINK !!).
 
@@ -845,65 +845,71 @@ class HDSimsGen(s10sims.S10Sims):
     
     def get_apod_window_fname(self, **kwargs):
         """Returns the path to the apodization window.
-        
+
         Parameters
         ----------
         **kwargs : dict
             Optional keyword arguments for the apodization window:
-            - A pair of `shape` (`tuple` of `int`) and `wcs` 
+            - A pair of `shape` (`tuple` of `int`) and `wcs`
               (`astropy.wcs.wcs.WCS`) attributes specifying the geometry
-              of the window. Alternatively, the  `width` and `height` 
+              of the window. Alternatively, the  `width` and `height`
               (`int` or `float`), in degrees, may be passed. The default
               values are given by the corresponding attributes defined
               during initialization.
             - The `apod_width` (in degrees) to use. The default is given
               by the `apod_width` attribute.
-            
+
         Returns
         -------
         fname : str
             The path to the apodization window.
         """
         kwargs = self.get_kwargs_with_defaults(**kwargs)
-        fname = simutils.get_apod_window_fname(kwargs['apod_width'], kwargs['width'], 
-                                               kwargs['height'], maps_dir=self.sim_dir())
+        # for maps cut out from default region, include info about R.A. and dec. of map center:
+        if (kwargs['shape'][0] < self.shape[0]) or (kwargs['shape'][1] < self.shape[1]):
+            ra_ctr, dec_ctr, _, _ = maps.get_map_ctr_extent(kwargs['shape'], kwargs['wcs'])
+        else:
+            ra_ctr = None
+            dec_ctr = None
+        fname = simutils.get_apod_window_fname(kwargs['apod_width'], kwargs['width'], kwargs['height'],
+                                               ra_ctr=ra_ctr, dec_ctr=dec_ctr, maps_dir=self.sim_dir())
         return fname
 
 
     def get_apod_window(self, save=False, **kwargs):
         """Returns the apodization window.
-        
+
         Parameters
         ----------
         save : bool, default=False
             Whether to save the window.
         **kwargs : dict
             Optional keyword arguments for the apodization window:
-            - A pair of `shape` (`tuple` of `int`) and `wcs` 
+            - A pair of `shape` (`tuple` of `int`) and `wcs`
               (`astropy.wcs.wcs.WCS`) attributes specifying the geometry
-              of the window. Alternatively, the  `width` and `height` 
+              of the window. Alternatively, the  `width` and `height`
               (`int` or `float`), in degrees, may be passed. The default
               values are given by the corresponding attributes defined
               during initialization.
             - The `apod_width` (in degrees) to use. The default is given
               by the `apod_width` attribute.
-            
+
         Returns
         -------
         window : pixell.enmap.ndmap
             The apodization window.
-            
+
         See Also
         --------
         apodize_map : Apodize a map.
         """
-        # if apod width wasn't passed, use the size of the window to 
+        # if apod width wasn't passed, use the size of the window to
         # choose the apod width: if window is for inner region of map,
         # assume it's being used before taking power spectra, so use
         # the full `apod_width`; otherwise, use the `map_apod_width`:
         kwargs = self.get_kwargs_with_defaults(defaults={'apod_width': None}, **kwargs)
         if kwargs['apod_width'] is None:
-            if maps.map_shape_is_equal(kwargs['shape'], self.shape):
+            if (kwargs['shape'][0] <= self.shape[0]) or (kwargs['shape'][1] <= self.shape[1]):
                 kwargs['apod_width'] = self.apod_width
             else:
                 kwargs['apod_width'] = self.map_apod_width
@@ -920,7 +926,6 @@ class HDSimsGen(s10sims.S10Sims):
                 self.infomsg(f"saved {fname}")
             self.infomsg(f"{utils.tmsg(time.time() - t)} to make window")
         return window
-    
     
     
     def apodize_map(self, imap, save_apod_window=False):

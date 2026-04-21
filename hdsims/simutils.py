@@ -857,7 +857,7 @@ def get_catalog_fname(component, width, height=None, catalog_dir=None,
     return fname
 
 
-def get_apod_window_fname(apod_width, width, height, maps_dir=None):
+def get_apod_window_fname(apod_width, width, height, ra_ctr=None, dec_ctr=None, maps_dir=None):
     """Return the file name of the apodization window.
 
     Parameters
@@ -866,6 +866,9 @@ def get_apod_window_fname(apod_width, width, height, maps_dir=None):
         The apodization width, in degrees.
     width, height : int or float
         The width and height of the apodization window, in degrees.
+    ra_ctr, dec_ctr : int or float or None, optional
+        The R.A. and dec. coordinates, in degrees, of the center of the
+        apodization window.
     maps_dir : str or None, default=None
         The path to the directory where the window is saved. If `maps_dir`
         is passed, the absolute path to the file is returned; otherwise,
@@ -881,6 +884,13 @@ def get_apod_window_fname(apod_width, width, height, maps_dir=None):
     hdsims.maps.make_apod_window : Create an apodization window.
     """
     patch_info = f'{round_str(width)}x{round_str(height)}deg'
+    if (ra_ctr is not None) or (dec_ctr is not None):
+        ctr_info = ''
+        if ra_ctr is not None:
+            ctr_info = f'ra{round_str(ra_ctr)}'
+        if dec_ctr is not None:
+            ctr_info = f'{ctr_info}dec{round_str(dec_ctr)}'
+        patch_info = f'{ctr_info}_{patch_info}'
     fname = f'window_{patch_info}_apod{round_str(apod_width)}deg.fits'
     if maps_dir is not None:
         fname = os.path.join(maps_dir, fname)

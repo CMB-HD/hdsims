@@ -239,6 +239,8 @@ def plot_map(imap, show=True, fname=None,
     ax.set_ylabel(f'dec [{units}]', labelpad=axis_labelpad)
     if grid:
         ax.grid(alpha=0.1, color=grid_color)
+    else:
+        ax.grid(visible=False)
     if colorbar:
         cbar = fig.colorbar(im, cax=cax)#, pad=cbar_pad, shrink=cbar_shrink)
         cbar_label_rot = 0 if rotate_cbar_label else 90

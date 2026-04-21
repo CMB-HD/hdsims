@@ -407,26 +407,8 @@ def map_shape_is_equal(shape1, shape2):
     return (shape1[-1] == shape2[-1]) and (shape1[-2] == shape2[-2])
 
 
-def map_wcs_is_equal(wcs1, wcs2):
-    """Compare the World Coordinate System (`wcs`) attributes of two
-    `pixell.enmap.ndmap` maps.
-
-    Parameters
-    ----------
-    wcs1, wcs2 : astropy.wcs.wcs.WCS
-        The `wcs` attribute of each map.
-
-    Returns
-    -------
-    bool
-        Whether the two maps have the same `wcs`.
-    """
-    return wcsutils.equal(wcs1, wcs2)
-
-
-def map_geometry_is_equal(shape1, wcs1, shape2, wcs2):
-    """Compare the `shape` and `wcs` attributes of two 
-    `pixell.enmap.ndmap` maps.
+def map_resolution_is_equal(shape1, wcs1, shape2, wcs2):
+    """Compare the resolution (pixel size) of two `pixell.enmap.ndmap` maps.
 
     Parameters
     ----------
@@ -439,13 +421,43 @@ def map_geometry_is_equal(shape1, wcs1, shape2, wcs2):
 
     Returns
     -------
-    equal_geometry : bool
-        Whether the two maps have the same `shape` and `wcs` attributes.
+    bool
+        Whether the two maps have the same resolution.
     """
-    equal_shape = map_shape_is_equal(shape1, shape2)
-    equal_wcs = map_wcs_is_equal(wcs1, wcs2)
-    equal_geometry = equal_shape and equal_wcs
-    return equal_geometry
+    res1 = get_map_resolution(shape1, wcs1)
+    res2 = get_map_resolution(shape2, wcs2)
+    same_res = np.isclose(res1, res2)
+    return same_res
+
+
+def map_geometry_is_equal(shape1, wcs1, shape2, wcs2):
+    """Compare the resolution (pixel size), location (coordinates of map
+    center) and size (width and height) of two `pixell.enmap.ndmap` maps.
+
+    Parameters
+    ----------
+    shape1, shape2 : tuple of int
+        The shape each map. The last two elements should be
+        `(Ny, Nx)` for the number of pixels along the dec. and R.A.
+        directions, respectively.
+    wcs1, wcs2 : astropy.wcs.wcs.WCS
+        The `wcs` attribute of each map.
+
+    Returns
+    -------
+    bool
+        Whether the two maps have the same resolution, location, and
+        size, i.e., they both correspond to the same patch of the sky.
+    """
+    # compare number of pixels along each direction:
+    same_shape = map_shape_is_equal(shape1, shape2)
+    # compare resolutions:
+    same_res = map_resolution_is_equal(shape1, wcs1, shape2, wcs2)
+    # compare location of map centers:
+    ra1, dec1, _, _ =  get_map_ctr_extent(shape1, wcs1)
+    ra2, dec2, _, _ =  get_map_ctr_extent(shape2, wcs2)
+    same_ctr = np.isclose(ra1, ra2) and np.isclose(dec1, dec2)
+    return same_shape and same_res and same_ctr
 
 
 def enmap2pspy(imap):
