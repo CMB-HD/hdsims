@@ -22,7 +22,7 @@ ra_ctr = 6  # degrees
 dec_ctr = 6 # degrees
 width = 10  # degrees
 height = 10 # degrees
-apod_width = 1 # degrees
+apod_width = 0.5 # degrees
 
 cmb_seed = 58 # for unlensed CMB
 # define default noise seeds for temperature maps 
@@ -52,7 +52,7 @@ hd_camb_accuracy_params = {'AccuracyBoost': 1.1,
                            'lens_potential_accuracy': 30,
                            'halofit_version': 'mead2016',
                            'NonLinear': 'NonLinear_both',
-                           'kmax': 10,
+                           'kmax': 100,
                            'k_per_logint': 130,
                           }
 
@@ -70,7 +70,7 @@ baseline_cib_model_name = 'baseline'
 alternative_cib_model_name = 'alternative'
 s10_cib_model_name = 's10'
 cib_model_names = [baseline_cib_model_name, alternative_cib_model_name, s10_cib_model_name]
-cib_model_pixel_res = {baseline_cib_model_name: s10_res, alternative_cib_model_name: 0.25, s10_cib_model_name: hd_res}
+cib_model_pixel_res = {baseline_cib_model_name: 0.25, alternative_cib_model_name: s10_res, s10_cib_model_name: hd_res}
 cib_gauss_sigma_pix_frac = 0.2  # add Gaussian scatter to positions w/ sigma = 20% of CIB model pixel size 
 cib_catalog_seed = 0 # seed used to add scatter
 

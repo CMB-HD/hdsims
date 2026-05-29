@@ -106,14 +106,14 @@ class HDSims(hdsims_plots.HDSimsPlots):
     
     def __init__(self, hd_sims_dir, lowres_sims_dir=None,
                  freqs=si.freqs, components=si.components,
-                 ra_ctr=si.ra_ctr, dec_ctr=si.dec_ctr, width=si.width, height=si.height, 
+                 ra_ctr=si.ra_ctr, dec_ctr=si.dec_ctr, width=si.width, height=si.height,
                  apod_width=si.apod_width, map_apod_width=None, res=si.hd_res,
                  cmb_seed=si.cmb_seed, pol=True, noise_seeds=si.noise_seeds,
                  lmax=si.lmax4spectra, bin_edges=None, bin_info=None,
-                 lmax4alms=si.lmax4alms, lmax4theo=si.lmax4theo, 
+                 lmax4alms=si.lmax4alms, lmax4theo=si.lmax4theo,
                  verbose=False, log=None, make_output_dirs=True, **kwargs):
         """Initialize the `HDSims` class for a given patch on the sky.
-        
+
         Parameters
         ----------
         hd_sims_dir : str
@@ -123,7 +123,7 @@ class HDSims(hdsims_plots.HDSimsPlots):
         lowres_sims_dir : str or None, default=None
             The path to the directory where the full-sky lower-resolution
             simulations and catalogs have been saved. This is required if
-            the ultrahigh-resolution simulations have not already been 
+            the ultrahigh-resolution simulations have not already been
             generated and saved; otherwise, it is not used.
         freqs : list of int, default=[30, 90, 148, 219, 277, 350]
             A list of map frequencies (in GHz). Each frequency in the list
@@ -132,10 +132,10 @@ class HDSims(hdsims_plots.HDSimsPlots):
             A list of map components to generate. Each component in the
             list must be one of: `'tsz'` for the thermal SZ (tSZ); `'ksz'`
             for the kinetic SZ (kSZ); `'cib'` for the cosmic infrared
-            background (CIB); `'radio'` for radio galaxies; and either 
+            background (CIB); `'radio'` for radio galaxies; and either
             `'cmb'` or `'unlensed_cmb'` for the lensed or unlensed CMB,
             respectively. If `'cmb'` is in the list, then unlensed CMB and
-            lensing convergence (`'kappa'`) simulations will also be 
+            lensing convergence (`'kappa'`) simulations will also be
             generated and saved. By default, the list includes all
             components except the `'unlensed_cmb'`.
         ra_ctr, dec_ctr : int or float, optional
@@ -145,48 +145,48 @@ class HDSims(hdsims_plots.HDSimsPlots):
         width : int or float, default=10
             The width (in degrees) of the region of the maps to be used
             for analysis, e.g. when taking the power spectrum of the
-            simulations. 
+            simulations.
         height : int or float, optional
-            The height (in degrees) of the region of the maps to be used 
+            The height (in degrees) of the region of the maps to be used
             for analysis. If the `height` is not provided, it is assumed
             to be equal to the `width`.
-        apod_width : int or float, default=1
+        apod_width : int or float, default=0.5
             The width (in degrees) of the region along each edge of the
             map that will be apodized before calculating its power
             spectrum.
         cmb_seed : int, default=58
             The random seed to use when generating a realization of the
-            unlensed CMB from a theory power spectra. 
+            unlensed CMB from a theory power spectra.
         pol : bool, default=True
             If `pol=True`, CMB temperature and polarization (T, Q, and U)
             maps will be generated. Otherwise, only the temperature map
             will be generated.
         lmax : int, default=21000
-            The maximum multipole to use when calculating the power 
+            The maximum multipole to use when calculating the power
             spectra of the simulations.
-        
+
         Other Parameters
         ----------------
         bin_edges : array_like of int or array_like of float, optional
-            An array of bin edges used to bin the power spectra. 
+            An array of bin edges used to bin the power spectra.
             The first element should be the lower edge of the first bin
-            (typically, `bin_edges[0] = 2`, which should be the minimum 
+            (typically, `bin_edges[0] = 2`, which should be the minimum
             value), and the remaining elements are the upper edges of each
-            bin. By default, uniform binning with a bin width of `200` 
+            bin. By default, uniform binning with a bin width of `200`
             is used. See the 'Notes' section for additional information.
         bin_info : str or None, default=None
-            If you use non-default `bin_edges`, you must also pass a short 
-            name (no special characters) that describes the binning. This 
+            If you use non-default `bin_edges`, you must also pass a short
+            name (no special characters) that describes the binning. This
             will be used in file names for binned power spectra (and other
             files that are needed to calculate the binned power spectra).
-            The `bin_info` parameter is ignored when the default 
-            `bin_edges` are used. See the 'Notes' section for additional 
+            The `bin_info` parameter is ignored when the default
+            `bin_edges` are used. See the 'Notes' section for additional
             information.
         noise_seeds : dict of int, optional
-            A dictionary of integer random seeds used to generate 
+            A dictionary of integer random seeds used to generate
             realizations of the white noise at each frequency. The keys
-            should be the integer frequencies (GHz), and each value 
-            should be a single `seed` for the temperature map. 
+            should be the integer frequencies (GHz), and each value
+            should be a single `seed` for the temperature map.
             If `pol=True`, the noise seeds for the polarization Q and U
             noise maps are `seed+1000` and `seed+2000`, respectively.
             The default seeds are `1`, `2`, `3`, `4`, `5`, and `6` for 30,
@@ -198,12 +198,12 @@ class HDSims(hdsims_plots.HDSimsPlots):
             The maximum multipole of any theory curves used to generate
             the simulations.
         map_apod_width : int or float, optional
-            The width (in degrees) of the region along each edge of the 
+            The width (in degrees) of the region along each edge of the
             map that will be apodized before taking any Fourier or
-            spherical harmonic transforms. The default is determined by
-            the parent class.
+            spherical harmonic transforms. By default, the `apod_width`
+            is used.
         res : int or float, default=0.04
-            The resolution of the maps, in arcminutes. 
+            The resolution of the maps, in arcminutes.
         verbose : bool, default=False
             Whether to print messages describing the progress of some
             calculations.
@@ -213,15 +213,15 @@ class HDSims(hdsims_plots.HDSimsPlots):
             Otherwise, messages will be passed to the `print` function.
         make_output_dirs : bool, default=True
             Whether to create the sub-directories under the `hd_sims_dir`
-            where the output files will be saved. This should not be 
+            where the output files will be saved. This should not be
             changed, but it is provided to, e.g., allow you to check where
             the files will be saved before generating the simulations.
         **kwargs : dict
             Any keyword arguments that are needed to initialize the parent
             class for the lower-resolution, full-sky simulations.
         """
-        super().__init__(hd_sims_dir, lowres_sims_dir=lowres_sims_dir, freqs=freqs, components=components, 
-                         ra_ctr=ra_ctr, dec_ctr=dec_ctr, width=width, height=height, 
+        super().__init__(hd_sims_dir, lowres_sims_dir=lowres_sims_dir, freqs=freqs, components=components,
+                         ra_ctr=ra_ctr, dec_ctr=dec_ctr, width=width, height=height,
                          apod_width=apod_width, map_apod_width=map_apod_width, res=res,
                          cmb_seed=cmb_seed, pol=pol, noise_seeds=noise_seeds, lmax4alms=lmax4alms, lmax4theo=lmax4theo,
                          verbose=verbose, log=log, make_output_dirs=make_output_dirs, **kwargs)
@@ -405,549 +405,4 @@ class HDSims(hdsims_plots.HDSimsPlots):
 
         self.infomsg(f'total time = {utils.tmsg(time.time() - t)} to generate all HD sims output')
     
-    
-# --- functions used only for the example notebooks provided on github: ---
-
-def precomputed_hdsims_output_dir():
-    """Return the path to the precomputed `hdsims` output files."""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'precomputed_hdsims_output')
-
-
-def check_if_example_files_saved(hd_sims_dir, lowres_sims_dir=None, freqs=[90], components=si.components,
-                                 use_precomputed_intermediate_sims=True, use_precomputed_inv_mcm=True,
-                                 use_precomputed_lensed_cmb=True, download_all=False):
-    """Check if all files needed to run the `hdsims` example are saved."""
-    simlib = HDSims(hd_sims_dir, verbose=False, width=2, height=2, apod_width=0.25)
-    # for files that the user isn't going to generate, copy them into the user's directory:
-    copy_precomputed_example_files(hd_sims_dir, freqs=freqs, components=components,
-                                   intermediate_maps=use_precomputed_intermediate_sims,
-                                   inv_mcm=use_precomputed_inv_mcm,
-                                   lensed_cmb_theory=use_precomputed_lensed_cmb)
-    # initially, assume everything is saved
-    intermediate_sim_files_saved = True
-    inv_mcm_saved = True
-    lensed_cmb_saved = True
-    # keep track of info about any files that aren't saved
-    intermediate_fnames = {'maps': {}, 'catalogs': {}}
-    mcm_info = {'hd': {}, 's10': {}}
-    cmb_info = {}
-
-    # look for intermediate maps & catalogs that were generated from full-sky S10 sims:
-    s10_components = [c for c in components if (c in si.s10_sim_components)]
-    for component in s10_components:
-        sim_freqs = freqs if simutils.has_freq_dependent_component(component) else [None]
-        for freq in sim_freqs:
-            fname = simlib.get_intermediate_sim_fname(component, freq=freq)
-            if not os.path.exists(fname):
-                intermediate_sim_files_saved = False
-                if component not in intermediate_fnames['maps']:
-                    intermediate_fnames['maps'][component] = {}
-                intermediate_fnames['maps'][component] = {freq: fname}
-    catalog_components = [c for c in components if (c in ['cib', 'radio'])] # we don't need the SZ catalog to generate the sims
-    for component in catalog_components:
-        fname = simlib.get_sim_catalog_fname(component, padded_ntimes=2)
-        if not os.path.exists(fname):
-            intermediate_sim_files_saved = False
-            intermediate_fnames['catalogs'][component] = fname
-
-    # look for inverse mode-coupling matrix & binning matrix files:
-    for bin_dl in [False, True]:
-        spec_type = 'dl' if bin_dl else 'cl'
-        # for HD TQU maps:
-        mcm_fnames, bbl_fnames = simlib.get_mode_coupling_fnames(bin_dl=bin_dl)
-        for key in mcm_fnames.keys():
-            if not os.path.exists(mcm_fnames[key]):
-                inv_mcm_saved = False
-                if spec_type not in mcm_info['hd']:
-                    mcm_info['hd'][spec_type] = {}
-                if key not in mcm_info['hd'][spec_type]:
-                    mcm_info['hd'][spec_type][key] = {}
-                mcm_info['hd'][spec_type][key]['mcm'] = mcm_fnames[key]
-            if not os.path.exists(bbl_fnames[key]):
-                inv_mcm_saved = False
-                if spec_type not in mcm_info['hd']:
-                    mcm_info['hd'][spec_type] = {}
-                if key not in mcm_info['hd'][spec_type]:
-                    mcm_info['hd'][spec_type][key] = {}
-                mcm_info['hd'][spec_type][key]['bbl'] = bbl_fnames[key]
-        # for S10-res T-only maps (only need mcm):
-        mcm_fname, bbl_fname = simlib.get_intermediate_mode_coupling_fnames('tsz', bin_dl=bin_dl)
-        if not os.path.exists(mcm_fname):
-            inv_mcm_saved = False
-            mcm_info['s10'][spec_type] = mcm_fname
-    # for S10-res kappa map:
-    mcm_fname, bbl_fname = simlib.get_intermediate_mode_coupling_fnames('kappa', bin_dl=False)
-    if not os.path.exists(mcm_fname):
-        inv_mcm_saved = False
-        mcm_info['s10_kappa'] = mcm_fname
-
-    # lensed cmb sim & theory:
-    cmb_sim_fname = simlib.get_signal_sim_fname('cmb')
-    if not os.path.exists(cmb_sim_fname):
-        lensed_cmb_saved = False
-        cmb_info['sim'] = cmb_sim_fname
-    cmb_sim_theo_fname = simlib.get_sim_theory_fname('cmb')
-    if not os.path.exists(cmb_sim_theo_fname):
-        lensed_cmb_saved = False
-        cmb_info['theo'] = cmb_sim_theo_fname
-
-    # tell the user what must still be done (if anything):
-    all_files_saved = all([intermediate_sim_files_saved, inv_mcm_saved, lensed_cmb_saved])
-
-    if all_files_saved:
-        print("You may proceed and run the rest of the example notebook: all files needed to generate the HD sims are saved")
-
-    else: # print out info about what is missing:
-        print("The following files were not found and must be saved before proceeding:")
-
-        if len(intermediate_fnames['maps']) > 0:
-            print("  Sims at the S10 resolution, cut out from the full-sky maps:")
-            for component in intermediate_fnames['maps'].keys():
-                for freq, fname in intermediate_fnames['maps'][component].items():
-                    map_info = component if (freq is None) else f"{freq} GHz {component}"
-                    print(f"    {map_info} : {fname}")
-
-        if len(intermediate_fnames['catalogs']) > 0:
-            print("  Catalogs for our patch of sky, generated from the full-sky S10 catalogs:")
-            for component, fname in intermediate_fnames['catalogs'].items():
-                print(f"    {component} : {fname}")
-
-        if len(mcm_info['hd']) > 0:
-            print("  Inverse mode-coupling and binning matrices for HD sims:")
-            spin_info = {'spin0xspin0': 'temperature', 'spin0xspin2': 'temperature x polarization', 'spin2xspin0': 'polarization x temperature', 'spin2xspin2': 'polarization'}
-            for spec_type in mcm_info['hd'].keys():
-                for key in mcm_info['hd'][spec_type].keys():
-                    print(f"    Files for {spin_info[key]} spectra (binned as {spec_type.capitalize()}'s):")
-                    if 'mcm' in mcm_info['hd'][spec_type][key]:
-                        print(f"      inverse mode-coupling matrix: {mcm_info['hd'][spec_type][key]['mcm']}")
-                    if 'bbl' in mcm_info['hd'][spec_type][key]:
-                        print(f"      binning matrix: {mcm_info['hd'][spec_type][key]['bbl']}")
-
-        if (len(mcm_info['s10']) > 0) or ('s10_kappa' in mcm_info):
-            print("  Inverse mode-coupling matrices for the intermediate, S10-resolution sims:")
-            for spec_type in mcm_info['s10'].keys():
-                print(f"    inverse mode-coulping matrix (for spectra binned as {spec_type.capitalize()}'s): {mcm_info['s10'][spec_type]}")
-            if 's10_kappa' in mcm_info:
-                print(f"    inverse mode-coulping matrix for S10-resolution lensing convergence sim: {mcm_info['s10_kappa']}")
-
-        if not lensed_cmb_saved:
-            if 'sim' in cmb_info:
-                print(f"  The HD lensed CMB sim: {cmb_info['sim']}")
-            if 'theo' in cmb_info:
-                print(f"  The lensed CMB sim theory curves: {cmb_info['theo']}")
-
-        use_precomputed_intermediate_sims = intermediate_sim_files_saved or use_precomputed_intermediate_sims 
-        use_precomputed_inv_mcm = inv_mcm_saved or use_precomputed_inv_mcm
-        need_lensed_cmb = not lensed_cmb_saved
-
-        print('\n')
-        print_example_instructions(hd_sims_dir, lowres_sims_dir=lowres_sims_dir, freqs=freqs, components=components,
-                                   download_all=download_all,
-                                   use_precomputed_intermediate_sims=use_precomputed_intermediate_sims,
-                                   use_precomputed_inv_mcm=use_precomputed_inv_mcm,
-                                   use_precomputed_lensed_cmb=use_precomputed_lensed_cmb, need_lensed_cmb=need_lensed_cmb)
-        print("Then, re-run this cell to verify that everything has been saved.")
-
-    return all_files_saved
-
-
-def copy_precomputed_2x2_inv_mcm_withbeam(hd_sims_dir, freqs=[90]):
-    """Copy the precomputed inverse mode-coupling matrices that correct
-    for the 90 GHz beam for the `hdsims` example.
-    """
-    simlib = HDSims(hd_sims_dir, verbose=False, width=2, height=2, apod_width=0.25)
-    for freq in freqs:
-        for bin_dl in [False, True]:
-            mcm_fnames, bbl_fnames = simlib.get_mode_coupling_fnames(bin_dl=bin_dl, beam=True, freq=freq)
-            for key in mcm_fnames.keys():
-                for dst_fname in [mcm_fnames[key], bbl_fnames[key]]:
-                    if not os.path.exists(dst_fname):
-                        src_fname = dst_fname.replace(hd_sims_dir, precomputed_hdsims_output_dir())
-                        shutil.copy(src_fname, dst_fname)
-    
-
-def copy_precomputed_example_files(hd_sims_dir, freqs=[90], components=si.components,
-                                   intermediate_maps=True, inv_mcm=True, lensed_cmb_theory=True):
-    """Copy the precomputed files needed for the `hdsims` example into 
-    the appropriate location within the given `hd_sims_dir`.
-    """
-    simlib = HDSims(hd_sims_dir, verbose=False, width=2, height=2, apod_width=0.25)
-
-    if intermediate_maps:
-        # sims at S10 resolution:
-        s10_components = [c for c in components if (c in si.s10_sim_components)]
-        for component in s10_components:
-            sim_freqs = freqs if simutils.has_freq_dependent_component(component) else [None]
-            for freq in sim_freqs:
-                dst_fname = simlib.get_intermediate_sim_fname(component, freq=freq)
-                if not os.path.exists(dst_fname):
-                    src_fname = dst_fname.replace(hd_sims_dir, precomputed_hdsims_output_dir())
-                    shutil.copy(src_fname, dst_fname)
-        # catalogs:
-        catalog_components = [c for c in components if (c in ['cib', 'radio'])]
-        if ('tsz' in components) or ('ksz' in components):
-            catalog_components.append('sz')
-        for component in catalog_components:
-            dst_fname = simlib.get_sim_catalog_fname(component, padded_ntimes=2)
-            if not os.path.exists(dst_fname):
-                src_fname = dst_fname.replace(hd_sims_dir, precomputed_hdsims_output_dir())
-                shutil.copy(src_fname, dst_fname)
-    
-    if inv_mcm:
-        for bin_dl in [False, True]:
-            # for HD TQU maps:
-            mcm_fnames, bbl_fnames = simlib.get_mode_coupling_fnames(bin_dl=bin_dl)
-            for key in mcm_fnames.keys():
-                for dst_fname in [mcm_fnames[key], bbl_fnames[key]]:
-                    if not os.path.exists(dst_fname):
-                        src_fname = dst_fname.replace(hd_sims_dir, precomputed_hdsims_output_dir())
-                        shutil.copy(src_fname, dst_fname)
-            # for S10-res T-only maps:
-            mcm_fname, bbl_fname = simlib.get_intermediate_mode_coupling_fnames('tsz', bin_dl=bin_dl)
-            for dst_fname in [mcm_fname, bbl_fname]:
-                if not os.path.exists(dst_fname):
-                    src_fname = dst_fname.replace(hd_sims_dir, precomputed_hdsims_output_dir())
-                    shutil.copy(src_fname, dst_fname)
-        # for S10-res kappa map:
-        mcm_fname, bbl_fname = simlib.get_intermediate_mode_coupling_fnames('kappa', bin_dl=False)
-        for dst_fname in [mcm_fname, bbl_fname]:
-            if not os.path.exists(dst_fname):
-                src_fname = dst_fname.replace(hd_sims_dir, precomputed_hdsims_output_dir())
-                shutil.copy(src_fname, dst_fname)
-
-    if lensed_cmb_theory:
-        # HD cmb sim file is too large to provide with the code, but we can provide the theory file:
-        dst_fname = simlib.get_sim_theory_fname('cmb')
-        if not os.path.exists(dst_fname):
-            src_fname = dst_fname.replace(hd_sims_dir, precomputed_hdsims_output_dir())
-            shutil.copy(src_fname, dst_fname)
-
-
-def print_example_instructions(hd_sims_dir, lowres_sims_dir=None, freqs=[90], components=si.components,
-                               generate_all_sims_and_calculate_spectra=False, download_all=False,
-                               use_precomputed_intermediate_sims=True,
-                               use_precomputed_inv_mcm=True,
-                               use_precomputed_lensed_cmb=True, need_lensed_cmb=True):
-    """Print instructions to save the files needed to run the
-    `hdsims` example.
-    """
-    if (not use_precomputed_intermediate_sims) and (lowres_sims_dir in [None, '']):
-        raise ValueError(f"`{use_precomputed_intermediate_sims = }` and `{lowres_sims_dir = }`."
-                          " You must provide the path to the `lowres_sims_dir` in order to use the"
-                          " full-sky S10 sims. Otherwise, pass `use_precomputed_intermediate_sims=True`"
-                          " to instead use the pre-computed files that are provided.")
-    generate_intermediate_sims_and_catalogs = not use_precomputed_intermediate_sims
-    calculate_inverse_mode_coupling_matrix = not use_precomputed_inv_mcm
-    simlib = HDSims(hd_sims_dir, verbose=False, width=2, height=2, apod_width=0.25)
-    # for files that the user isn't going to generate or download, copy them into the user's directory:
-    if not download_all:
-        copy_precomputed_example_files(hd_sims_dir, freqs=freqs, components=components,
-                                       intermediate_maps=use_precomputed_intermediate_sims,
-                                       inv_mcm=use_precomputed_inv_mcm,
-                                       lensed_cmb_theory=use_precomputed_lensed_cmb)
-    # generate a single command and/or list of commands for each step that needs to be run:
-    args_list = [hd_sims_dir]
-    cmd_list = []
-    wget_cmd_list = []
-    if download_all:
-        wget_cmd_list.append(f'bash download_all_2x2_HDsims_data.sh {hd_sims_dir}')
-    elif generate_all_sims_and_calculate_spectra:
-        if generate_intermediate_sims_and_catalogs:
-            wget_cmd_list.append(f'bash download_90GHz_S10sims_data.sh {lowres_sims_dir}')
-            args_list.append(f'--lowres_sims_dir {lowres_sims_dir}')
-        args_list.append('--all')
-        cmd_list.append(f"python prepare_2x2_example_files.py {hd_sims_dir} {' '.join(args_list)}")
-    else:
-        if generate_intermediate_sims_and_catalogs:
-            wget_cmd_list.append(f'bash download_90GHz_S10sims_data.sh {lowres_sims_dir}')
-            args_list.append(f'--lowres_sims_dir {lowres_sims_dir}')
-            args_list.append('--intermediate_maps')
-            cmd_list.append(f'python prepare_2x2_example_files.py {hd_sims_dir} --lowres_sims_dir {lowres_sims_dir} --intermediate_maps')
-        if calculate_inverse_mode_coupling_matrix:
-            args_list.append('--inv_mcm')
-            cmd_list.append(f'python prepare_2x2_example_files.py {hd_sims_dir} --inv_mcm')
-        if need_lensed_cmb and (not use_precomputed_lensed_cmb):
-            args_list.append('--cmb')
-            cmd_list.append(f'python prepare_2x2_example_files.py {hd_sims_dir} --cmb')
-    if need_lensed_cmb and use_precomputed_lensed_cmb:
-        # !!! TODO !!! : url to HD lensed 2x2 CMB sim
-        hd_cmb_sim_url = '<URL TO 2X2 HD CMB SIM ON LAMBDA>'
-        wget_cmd_list.append(f'wget -c -O {simlib.sim_dir()} {hd_cmb_sim_url}')
-
-    example_cmd_args = ' '.join(args_list)
-    example_cmd = f'python prepare_2x2_example_files.py {example_cmd_args}'
-    if (len(cmd_list) > 0) or (len(wget_cmd_list) > 0):
-        print(f'Before running the rest of this notebook, you must run the following command(s):\n')
-        if len(wget_cmd_list) > 0:
-            for cmd in wget_cmd_list:
-                print('  ', cmd)
-        if len(cmd_list) > 0:
-            print('  ', example_cmd)
-            if len(cmd_list) > 1:
-                print('\n If you would prefer to run each step individually, you can replace the single python call shown above with the following:\n')
-                for cmd in cmd_list:
-                    print('  ', cmd)
-        print('\n')
-
-
-def compare_example_spectra(hd_sims_dir, freqs=[90], fdiff_tol=0.01):
-    """Compare the power spectra calculated in the `hdsims` example with
-    the corresponding precomputed power spectra.
-
-    Check if the (absolute value of) the fractional difference (in percent)
-    between the two sets of spectra is less than the `fdiff_tol`.
-    """
-    simlib = HDSims(hd_sims_dir, verbose=False, width=2, height=2, apod_width=0.25, freqs=freqs)
-    components = simlib.components
-    if ('cmb' in components) and ('kappa' not in components):
-        components.append('kappa')
-    precomputed_example_output_dir = os.path.join(precomputed_hdsims_output_dir(), 'ra6dec6_2x2deg_hdsims')
-    precomputed_example_spectra_dir = os.path.join(precomputed_example_output_dir, 'spectra')
-    
-    sim_spectra = {}
-    precomputed_spectra = {}
-    unmatched_info = [] # keep track of any components & freqs that don't match
-    for component in components:
-        print(f'{component = }:')
-        sim_spectra[component] = {}
-        precomputed_spectra[component] = {}
-
-        sim_freqs = freqs if simutils.has_freq_dependent_component(component) else [None]
-        bin_dl = False if (component in ['cmb', 'kappa']) else True
-        for freq in sim_freqs:
-            # load sim spectra
-            sim_power = simlib.get_signal_sim_power(component, freq=freq, bin_dl=bin_dl)
-            sim_spectra[component][freq] = {}  # use shorter names for keys
-            for key in sim_power.keys():
-                spec_key = key[2:] if ('ell' not in key) else key
-                sim_spectra[component][freq][spec_key] = sim_power[key].copy()
-
-            # load precomputed spectra
-            precomputed_spectra_fname = simlib.get_signal_sim_power_fname(component, freq=freq, bin_dl=bin_dl).replace(simlib.spectra_dir(), precomputed_example_spectra_dir)
-            precomputed_spectra_cols = simutils.get_spectra_keys(component, pol=simlib.pol)
-            precomputed_spectra[component][freq] = utils.load_dict_from_file(precomputed_spectra_fname, precomputed_spectra_cols)
-
-            # compare them
-            if 'cmb' not in component: 
-                key = 'kk' if (component == 'kappa') else 'tt'
-                freq_info = '' if (freq is None) else f'{freq:3d} GHz '
-                fdiff = utils.get_fdiff(sim_spectra[component][freq][key], precomputed_spectra[component][freq][key])
-                min_fdiff = np.min(fdiff)
-                max_fdiff = np.max(fdiff)
-                avg_fdiff = np.mean(fdiff)
-                if abs(avg_fdiff) <= fdiff_tol:
-                    print(f'  Success! Your {freq_info}power spectrum matches the precomputed spectrum (average fractional difference is {avg_fdiff:5.2f} %)')
-                else:
-                    unmatched_info.append([component, freq])
-                    print(f'  Your {freq_info}power spectrum does not match the precomputed spectrum (average fractional difference is {avg_fdiff:5.2f} % ; min. = {min_fdiff:5.2f} %, max. = {max_fdiff:5.2f} %)')     
-            else:
-                keys = ['tt', 'ee', 'bb'] if simlib.pol else ['tt']
-                for key in keys:
-                    fdiff = utils.get_fdiff(sim_spectra[component][freq][key], precomputed_spectra[component][freq][key])
-                    min_fdiff = np.min(fdiff)
-                    max_fdiff = np.max(fdiff)
-                    avg_fdiff = np.mean(fdiff)
-                    if abs(avg_fdiff) <= fdiff_tol:
-                        print(f'  Success! Your {key.upper()} power spectrum matches the precomputed spectrum (average fractional difference is {avg_fdiff:5.2f} %)')
-                    else:
-                        if key == 'tt':
-                            unmatched_info.append([component, freq])
-                        print(f'  Your {key.upper()} power spectrum does not match the precomputed spectrum (average fractional difference is {avg_fdiff:5.2f} % ; min. = {min_fdiff:5.2f} %, max. = {max_fdiff:5.2f} %)')
-
-    if len(unmatched_info) == 0:
-        print('\nSuccess! All of your sim spectra match the precomputed spectra.')
-
-    plots.plot_sim_spectra_comparison(sim_spectra, precomputed_spectra,  'Your sims', 'Precomputed',  
-                                      plot_fdiff=True, show=True,  lmin1=200, lmax1=20000, lmin2=200, lmax2=20000)
-    
-
-def print_instructions_for_10x10(hd_sims_dir, lowres_sims_dir=None,
-                                 plot_maps=False, reproduce_sims_and_spectra=False,
-                                 fig2_fname='fig2.png', fig3_fname='fig3.pdf', fig4_fname='fig4.pdf'):
-    """Print instructions to reproduce the plots in arXiv:XXXX.XXXXX (!! TODO !!), or
-    to reproduce all of the simulation products for a 10 degree by
-    10 degree patch of sky centered at R.A. = 6 degrees, dec. = 6 degrees.
-    """
-    if reproduce_sims_and_spectra:
-        if lowres_sims_dir in [None, '']:
-            raise ValueError("You must provide the path to the `lowres_sims_dir` in order to generate new simulations")
-        print("To reproduce the HD sims and power spectra, you must download the full-sky S10 data by running the following command:\n")
-        print(f"    bash download_all_S10sims_data.sh {lowres_sims_dir}\n")
-        print("Then run the following command to generate the HD sims, sim power spectra, and plots:\n")
-        print(f"    python reproduce_10x10.py {hd_sims_dir} {lowres_sims_dir}\n")
-        print(f"The output files will be saved under: {hd_sims_dir}/ra6dec6_10x10deg_hdsims")
-        print(f"The plots will be saved to: {hd_sims_dir}/ra6dec6_10x10deg_hdsims/plots")
-    elif plot_maps:
-        print("You must download the HD sim maps in order to plot them. This can be done by running the following command:\n")
-        print(f"    bash download_90GHz_10x10_hd_sims.sh {hd_sims_dir}\n")
-        print(f"Then, you can either plot the maps inside of this notebook, or you can run the following command to save all of the plots:\n")
-        print(f"    python reproduce_10x10_plots.py {hd_sims_dir} --fig2fname {fig2_fname} --fig3fname {fig3_fname} --fig4fname {fig4_fname}")
-
-
-def fig2_maps_are_saved(hd_sims_dir, freq=90):
-    """Check if the maps needed to reproduce Figure 2 in arXiv:XXXX.XXXXX (!! TODO !!) are saved."""
-    simlib = HDSims(hd_sims_dir, make_output_dirs=False)
-    all_files_saved = True # begin by assuming the maps are saved
-    # we need the map of each component:
-    for component in [*si.components, 'kappa']:
-        sim_fname = simlib.get_signal_sim_fname(component, freq=freq)
-        if not os.path.exists(sim_fname):
-            all_files_saved = False
-    # we also need the apodization window used when convolving the beam:
-    window_fname = simlib.get_apod_window_fname(shape=simlib.padded_shape, wcs=simlib.padded_wcs, apod_width=simlib.map_apod_width) 
-    if not os.path.exists(window_fname):
-        all_files_saved = False
-    # raise an error if the files weren't saved
-    if not all_files_saved:
-        raise FileNotFoundError(f"Cannot find the maps needed to reproduce Figure 2 in the `hd_sims_dir`, '{hd_sims_dir}'.")
-    return all_files_saved
-
-
-def reproduce_sim_maps_plot(hd_sims_dir, freq=90, show=True, fname=None):
-    """Reproduce Figure 2 of arXiv:XXXX.XXXXX (!! TODO !!)."""
-    simlib = HDSims(hd_sims_dir, verbose=True)
-    plt_output = simlib.plot_sim_maps(freq, show=show, save=(fname is not None), fname=fname)
-    if not show:
-        return plt_output
-
-
-def reproduce_sim_spectra_comparison_plot(hd_sims_dir=None, show=True, fname=None):
-    """Reproduce Figure 3 of arXiv:XXXX.XXXXX (!! TODO !!)."""
-    if hd_sims_dir is None:
-        hd_sims_dir = precomputed_hdsims_output_dir()
-    simlib = HDSims(hd_sims_dir, make_output_dirs=False)
-    plt_output = simlib.plot_sim_spectra_comparison(show=True, save=(fname is not None), fname=fname, plot_fdiff=True, use_fig3_settings=True)
-    if not show:
-        return plt_output
-
-
-def reproduce_ksz_kappa_sim_spectra_plot(hd_sims_dir=None, show=True, fname=None):
-    """Reproduce Figure 4 of arXiv:XXXX.XXXXX (!! TODO !!)."""
-    if hd_sims_dir is None:
-        hd_sims_dir = precomputed_hdsims_output_dir()
-    simlib = HDSims(hd_sims_dir, make_output_dirs=False)
-    plt_output = simlib.plot_smallscale_ksz_kappa_spectra(show=True, save=(fname is not None), fname=fname, plot_fdiff=True)
-    if not show:
-        return plt_output
-
-
-# functions to load in some of the precomputed files we provide:
-
-def load_precomputed_10x10_sim_spectra(component, freq=None, bin_cl=True, bin_dl=False):
-    """Load the precomputed power spectra of the simulations used in 
-    arXiv:XXXX.XXXXX (!! TODO !!) on a 10 degree by 10 degree patch of sky centered at 
-    R.A. = 6 degrees, dec. = 6 degrees.
-    
-    See `HDSims.load_signal_sim_power` for more information.
-    """
-    simlib = HDSims(precomputed_hdsims_output_dir(), make_output_dirs=False)
-    return simlib.load_signal_sim_power(component, freq=freq, bin_cl=bin_cl, bin_dl=bin_dl)
-
-
-def load_precomputed_10x10_theory(component, binned=False, bin_dl=False):
-    """Load the precomputed theory power spectra for the simulations on
-    a 10 degree by 10 degree patch of sky centered at R.A. = 6 degrees,
-    dec. = 6 degrees used in arXiv:XXXX.XXXXX (!! TODO !!).
-
-    See `HDSims.get_sim_theory` for more information.
-    """
-    simlib = HDSims(precomputed_hdsims_output_dir(), make_output_dirs=False)
-    theo = simlib.get_sim_theory(component, binned=binned, dl=bin_dl)
-    return theo
-
-
-def load_precomputed_10x10_inv_mcm(bin_dl=False):
-    """Load the precomputed inverse mode-coupling matrices for the
-    simulations on a 10 degree by 10 degree patch of sky centered at
-    R.A. = 6 degrees, dec. = 6 degrees used in arXiv:XXXX.XXXXX (!! TODO !!).
-
-    See `HDSims.get_mode_coupling` for more information.
-    """
-    simlib = HDSims(precomputed_hdsims_output_dir(), make_output_dirs=False)
-    inv_mcm = simlib.get_mode_coupling(bin_dl=bin_dl, binning_matrix=False)
-    return inv_mcm
-
-
-def load_precomputed_10x10_binning_matrix(bin_dl=False):
-    """Load the binning matrices calculated for the simulations on a
-    10 degree by 10 degree patch of sky centered at R.A. = 6 degrees,
-    dec. = 6 degrees used in arXiv:XXXX.XXXXX (!! TODO !!).
-
-    See `HDSims.get_mode_coupling` for more information.
-    """
-    simlib = HDSims(precomputed_hdsims_output_dir(), make_output_dirs=False)
-    inv_mcm, bbl = simlib.get_mode_coupling(bin_dl=bin_dl, binning_matrix=True)
-    return bbl
-
-
-
-
-
-def make_run_hdsims_command(path_to_run_hdsims, hd_sims_dir, lowres_sims_dir,
-                            ra_ctr=si.ra_ctr, dec_ctr=si.dec_ctr, width=si.width, height=si.height,
-                            apod_width=si.apod_width, cmb_seed=si.cmb_seed, pol=True,
-                            freqs=si.freqs, components=si.map_components,
-                            calculate_power_spectra=True, save_plots=True):
-    if hd_sims_dir in [None, '']:
-        raise ValueError("You must provide the path to the `hd_sims_dir` where the simulations will be saved.")
-    if lowres_sims_dir in [None, '']:
-        raise ValueError("You must provide the path where the full-sky, lower-resolution S10 simulations will be (or already are) saved.")
-
-    # check if S10 files are saved ; if not, need to download them
-    need_s10_sims = False
-    if 'tsz' in components:
-        for freq in freqs:
-            sim_fname = s10sims.get_fullsky_s10_sim_fname('tsz', freq=freq, s10_sims_dir=lowres_sims_dir)
-            if not os.path.exists(sim_fname):
-                need_s10_sims = True
-    if ('ksz' in components) and (not os.path.exists(s10sims.get_fullsky_s10_sim_fname('ksz', s10_sims_dir=lowres_sims_dir))):
-        need_s10_sims = True
-    if (('kappa' in components) or ('cmb' in components)) and (not os.path.exists(s10sims.get_fullsky_s10_sim_fname('kappa', s10_sims_dir=lowres_sims_dir))):
-        need_s10_sims = True
-    if ('radio' in components) and (not os.path.exists(s10sims.get_fullsky_s10_catalog_fnames('radio', s10_sims_dir=lowres_sims_dir))):
-        need_s10_sims = True
-    if 'cib' in components:
-        cib_catalog_fnames = s10sims.get_fullsky_s10_catalog_fnames('cib', s10_sims_dir=lowres_sims_dir)
-        if not all([os.path.exists(fname) for fname in cib_catalog_fnames]):
-            need_s10_sims = True
-
-    # command to run hdsims:
-    run_hdsims_file = os.path.join(path_to_run_hdsims, 'run_hdsims.py')
-    run_hdsims_cmd_list = [f'python {run_hdsims_file} {hd_sims_dir} --lowres-sims-dir {lowres_sims_dir}']
-    if not np.isclose(ra_ctr, si.ra_ctr, atol=utils.arcmin2deg(si.hd_res), rtol=0):
-        run_hdsims_cmd_list.append(f'--ra {simutils.round_str(ra_ctr, n=5)}')
-    if not np.isclose(dec_ctr, si.dec_ctr, atol=utils.arcmin2deg(si.hd_res), rtol=0):
-        run_hdsims_cmd_list.append(f'--dec {simutils.round_str(dec_ctr, n=5)}')
-    if not np.isclose(width, si.width, atol=utils.arcmin2deg(si.hd_res), rtol=0):
-        run_hdsims_cmd_list.append(f'--width {simutils.round_str(width, n=5)}')
-    if not np.isclose(height, si.height, atol=utils.arcmin2deg(si.hd_res), rtol=0):
-        run_hdsims_cmd_list.append(f'--height {simutils.round_str(height, n=5)}')
-    if not np.isclose(apod_width, si.apod_width, atol=utils.arcmin2deg(si.hd_res), rtol=0):
-        run_hdsims_cmd_list.append(f'--apod_width {simutils.round_str(apod_width, n=5)}')
-    if cmb_seed != si.cmb_seed:
-        run_hdsims_cmd_list.append(f'--cmbseed {int(cmb_seed)}')
-    if not pol:
-        run_hdsims_cmd_list.append('--nopol')
-    if set(freqs) != set(si.freqs):
-        freqs_list = ' '.join([str(freq) for freq in freqs])
-        run_hdsims_cmd_list.append(f'--freqs {freqs_list}')
-    if (set(components) != set(si.components)) or (set(components) != set(si.map_components)):
-        components_list = ' '.join(components)
-        run_hdsims_cmd_list.append(f'--components {components_list}')
-    if not calculate_power_spectra:
-        run_hdsims_cmd_list.append('--nospectra')
-    if not save_plots:
-        run_hdsims_cmd_list.append('--noplots')
-    run_hdsims_cmd = ' '.join(run_hdsims_cmd_list)
-
-
-    if need_s10_sims:
-        s10_download_file = os.path.join(path_to_run_hdsims, 'download_all_S10sims_data.sh')
-        s10_download_cmd = f'bash {s10_download_file} {lowres_sims_dir}'
-        print("Before generating the HD simulations, you must download the S10 simulation files ; you may do so by running the following command:\n")
-        print("  ", s10_download_cmd, "\n")
-
-    print("To generate the HD simulations, run the following command:\n")
-    print("  ", run_hdsims_cmd, "\n")
-
 

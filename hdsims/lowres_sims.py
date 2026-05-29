@@ -37,34 +37,34 @@ class LowResSims(simutils.Sims):
     inherited attributes and methods.
     """
     
-    def __init__(self, hd_sims_dir, lowres_sims_dir, 
+    def __init__(self, hd_sims_dir, lowres_sims_dir,
                  freqs=si.freqs, lowres_sim_components=si.s10_sim_components, lowres_name='lowres',
                  ra_ctr=si.ra_ctr, dec_ctr=si.dec_ctr, width=si.width, height=si.height,
-                 apod_width=si.apod_width, map_apod_width=None, res=si.hd_res,
-                 verbose=False, log=None, make_output_dirs=True):
+                 apod_width=si.apod_width, map_apod_width=None, lowres_apod_width=None,
+                 res=si.hd_res, verbose=False, log=None, make_output_dirs=True):
         """Initialization for the intermediate, lower-resolution
         simulations on a patch of sky.
-        
+
         Parameters
         ----------
         hd_sims_dir : str
             The path to the directory where all of the output files for
-            this patch of sky will be saved. This directory will be 
+            this patch of sky will be saved. This directory will be
             created if it does not already exist.
         lowres_sims_dir : str
             The path to the directory where the lower-resolution, full-sky
-            simulations and catalogs have been saved. 
+            simulations and catalogs have been saved.
         lowres_name : str, default='lowres'
-            A short name to label the set of full-sky, lower-resolution 
-            simulations in file names. Cannot contain any special 
+            A short name to label the set of full-sky, lower-resolution
+            simulations in file names. Cannot contain any special
             characters.
         freqs : list of int, default=[30, 90, 148, 219, 277, 350]
             A list of available frequencies (in GHz) for the simulations
-            and catalogs. 
+            and catalogs.
         lowres_sim_components : list of str, optional
-            A list of available lower-resolution map or catalog 
-            components. The default list includes `'ksz'`, `'tsz'`, 
-            `'kappa'` for the kSZ, tSZ and lensing convergence maps, 
+            A list of available lower-resolution map or catalog
+            components. The default list includes `'ksz'`, `'tsz'`,
+            `'kappa'` for the kSZ, tSZ and lensing convergence maps,
             respectively, and `'cib'`, `'radio'` for the CIB and radio
             catalogs, respectively.
         ra_ctr, dec_ctr : int or float, optional
@@ -72,14 +72,14 @@ class LowResSims(simutils.Sims):
             of the center of the patch of sky. The defaults are `ra_ctr=6`
             and `dec_ctr=6`.
         width : int or float, default=10
-            The width (in degrees) of the region of the final, 
+            The width (in degrees) of the region of the final,
             ultrahigh-resolution map to be used for analysis, e.g. when
-            taking its power spectrum. 
+            taking its power spectrum.
         height : int or float, optional
-            The height (in degrees) of the region of the final, 
+            The height (in degrees) of the region of the final,
             ultrahigh-resolution map to be used for analysis. By default,
             the `height` is assumed to be equal to the `width`.
-        apod_width : int or float, default=1
+        apod_width : int or float, default=0.5
             The width (in degrees) of the region along each edge of the
             map that will be apodized before calculating its power
             spectrum.
@@ -87,10 +87,15 @@ class LowResSims(simutils.Sims):
         Other Parameters
         ----------------
         map_apod_width : int or float, optional
-            The width (in degrees) of the region along each edge of the 
+            The width (in degrees) of the region along each edge of the
             map that will be apodized before taking any Fourier or
-            spherical harmonic transforms. By default, `apod_width/2` will
-            be used.
+            spherical harmonic transforms. By default, the `apod_width`
+            will be used.
+        lowres_apod_width : int or float, optional
+            The width (in degrees) of the region along each edge of the
+            initial, lower-resolution maps that will be apodized before
+            taking any Fourier or spherical harmonic transforms. By default,
+            the `map_apod_width` will be used.
         res : int or float, default=0.04
             The resolution of the ultrahigh-resolution maps, in arcminutes.
         verbose : bool, default=False
@@ -102,13 +107,13 @@ class LowResSims(simutils.Sims):
             Otherwise, messages will be passed to the `print` function.
         make_output_dirs : bool, default=True
             Whether to create the sub-directories under the `hd_sims_dir`
-            where the output files will be saved. This should not be 
+            where the output files will be saved. This should not be
             changed, but it is provided to, e.g., allow you to check where
             the files will be saved before generating the simulations.
         """
         super().__init__(hd_sims_dir, ra_ctr=ra_ctr, dec_ctr=dec_ctr, width=width, height=height,
-                         apod_width=apod_width, map_apod_width=map_apod_width, res=res,
-                         verbose=verbose, log=log, make_output_dirs=make_output_dirs)
+                         apod_width=apod_width, map_apod_width=map_apod_width, lowres_apod_width=lowres_apod_width,
+                         res=res, verbose=verbose, log=log, make_output_dirs=make_output_dirs)
         self.lowres_sims_dir = lowres_sims_dir
         self.lowres_name = lowres_name
         self.lowres_sim_components = lowres_sim_components
@@ -227,19 +232,19 @@ class LowResSims(simutils.Sims):
         
     def apodize_intermediate_map(self, imap):
         """Apodize an intermediate, lower-resolution map.
-        
+
         If the map has the same area as the area defined by the `width`
         and `height` attributes, it will be apodized over a region with a
         width given by the `apod_width` attribute along each edge.
-        Otherwise, the `map_apod_width` attribute will be used instead.
-        
+        Otherwise, the `lowres_apod_width` attribute will be used instead.
+
         Parameters
         ----------
         imap : pixell.enmap.ndmap
-            The input map. It must be the same resolution as the 
+            The input map. It must be the same resolution as the
             lower-resolution simulations, and it must contain the region
             defined by the `width` and `height` attributes.
-        
+
         Returns
         -------
         pixell.enmap.ndmap

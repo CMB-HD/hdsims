@@ -88,7 +88,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
             The height (in degrees) of the region of the maps to be used
             for analysis. If the `height` is not provided, it is assumed
             to be equal to the `width`.
-        apod_width : int or float, default=1
+        apod_width : int or float, default=0.5
             The width (in degrees) of the region along each edge of the
             map that will be apodized before calculating its power
             spectrum.
@@ -138,8 +138,8 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         map_apod_width : int or float, optional
             The width (in degrees) of the region along each edge of the
             map that will be apodized before taking any Fourier or
-            spherical harmonic transforms. The default is determined by
-            the parent class.
+            spherical harmonic transforms. By default, the `apod_width`
+            is used.
         res : int or float, default=0.04
             The resolution of the maps, in arcminutes.
         verbose : bool, default=False
@@ -202,12 +202,12 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
             self.save_bin_edges()
 
 
-    def binning_file(self):
+    def binning_file(self, save=True):
         """Returns the path to the binning file used to bin the power
         spectra of the simulations.
         """
         fname = simutils.get_binning_file_name(bin_info=self.bin_info, binning_dir=self.binning_dir())
-        if not os.path.exists(fname):
+        if save and not os.path.exists(fname):
             simpower.save_binning_file(fname, bin_edges=self.bin_edges)
         return fname
 
@@ -223,7 +223,7 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
 
     def save_bin_edges(self):
         """Save the bin edges."""
-        if not os.path.exists(self.bin_edges_fname()):
+        if os.path.exists(self.binning_dir()) and not os.path.exists(self.bin_edges_fname()):
             np.savetxt(self.bin_edges_fname(), self.bin_edges)
 
 

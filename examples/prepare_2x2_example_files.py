@@ -1,7 +1,7 @@
 import os
 import argparse
 import numpy as np
-from hdsims import hdsims, utils, siminfo as si, simutils
+from hdsims import hdsims, utils, siminfo as si, simutils, hdsimsutils
 
 
 # define command-line args and parse them:
@@ -18,7 +18,7 @@ args = parser.parse_args()
 # initialize the HDSims class for this example:
 width = 2          # width (in degrees) of region in sim maps that will ultimately be used for power spectra
 height = width     # height (in degrees) of region in sim maps that will ultimately be used for power spectra
-apod_width = 0.25  # apodization width (in degrees) used to apodize sims before taking their power
+apod_width = 0.2   # apodization width (in degrees) used to apodize sims before taking their power
 components = si.components
 freqs = args.freqs
 log = utils.get_logger(name='example', fmt="{message:s}") # use logging to print out messages as they are logged
@@ -62,7 +62,7 @@ if args.cmb:
     inv_mcm_fname, _ = simlib.get_mode_coupling_fnames(bin_dl=False)
     if not os.path.exists(inv_mcm_fname): # inv mcm hasn't been saved yet, so use the precomputed kappa sim power
         sim_clkk_fname = simlib.get_signal_sim_power_fname('kappa')
-        example_sim_clkk_fname = sim_clkk_fname.replace(args.hd_sims_dir, simutils.precomputed_hdsims_output_dir())
+        example_sim_clkk_fname = sim_clkk_fname.replace(args.hd_sims_dir, hdsimsutils.precomputed_hdsims_output_dir())
         sim_clkk = utils.load_dict_from_file(example_sim_clkk_fname, ['ells', 'kk'])
         utils.save_dict_to_file(sim_clkk_fname, sim_clkk, keys=['ells', 'kk'])
     simlib.get_sim_theory('cmb')

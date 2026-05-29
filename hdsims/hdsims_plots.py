@@ -77,7 +77,7 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
             The height (in degrees) of the region of the maps to be used
             for analysis. If the `height` is not provided, it is assumed
             to be equal to the `width`.
-        apod_width : int or float, default=1
+        apod_width : int or float, default=0.5
             The width (in degrees) of the region along each edge of the
             map that will be apodized before calculating its power
             spectrum.
@@ -127,8 +127,8 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
         map_apod_width : int or float, optional
             The width (in degrees) of the region along each edge of the
             map that will be apodized before taking any Fourier or
-            spherical harmonic transforms. The default is determined by
-            the parent class.
+            spherical harmonic transforms. By default, the `apod_width`
+            is used.
         res : int or float, default=0.04
             The resolution of the maps, in arcminutes.
         verbose : bool, default=False
@@ -400,7 +400,7 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
 
 
     def plot_sim_spectra_comparison(self, show=True, save=True, fname=None, save_intermediate_maps=False,
-                                    dpi=500, plot_fdiff=False, use_fig3_settings=False, **kwargs):
+                                    dpi=500, plot_fdiff=False, use_fig_settings=False, **kwargs):
         """Plot the power spectra of the simulations, and compare with the
         power spectra of their lower-resolution counterparts (for tSZ,
         kSZ, CIB, radio, lensing convergence) or to the corresponding
@@ -454,7 +454,7 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
             Whether to add a lower panel to the plot for each component
             showing the fractional difference between the two sets of
             power spectra being compared.
-        use_fig3_settings : bool, default=False
+        use_fig_settings : bool, default=False
             Whether to use the settings that produced Figure 3 in
             arXiv:XXXX.XXXX (!! TODO !!). This will fix the y-axis limits
             and tick labels.
@@ -487,7 +487,7 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
                 simulations, passed to the `get_intermediate_sim_power`
                 method.
             The additional keyword arguments for the plot itself are only
-            used if `use_fig3_settings=False`; they are:
+            used if `use_fig_settings=False`; they are:
             - `ylims` (`dict` of `list` of `float`) : The y-axis limits
                 for any of the power spectra plots. By default, no limits
                 will be set. Each dictionary key should be one of the
@@ -547,15 +547,17 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
             pol = len(spectra1['cmb'][None].keys()) > 2
         else:
             pol = False
-        if use_fig3_settings:
+        if use_fig_settings:
             cmb_ylims = [7e4, 2e10] if pol else [7e7, 1.2e10]
-            ylims = {'tsz': [-0.5, 22], 'ksz': [-0.05, 2.5], 'radio': [5e-1, 1.5e8],
+            ylims = {'tsz': [-0.5, 22], 
+                     'ksz': [-0.05, 1.25],
+                     'radio': [5e-1, 1.5e8],
                      'cib': [5e-3, 1.5e5], 'kappa': None, 'cmb': cmb_ylims}
             yticks = {component: None for component in spectra1.keys()}
             yticks['cib'] = [0.1, 10, 1e3, 1e5]
             yticks['radio'] = [10, 1e3, 1e5, 1e7]
-            fdiff_ylims = {'tsz': [-0.1, 0.05], 'ksz': [-0.06, 0.09], 'radio': [-2, 2],
-                           'cib': [-1, 3], 'kappa': None, 'cmb': [-7.5, 7.5]}
+            fdiff_ylims = {'tsz': [-0.2, 0.05],  'ksz': [-0.06, 0.06], 'radio': [-0.75, 0.75],
+                           'cib': [-1, 2], 'kappa': None, 'cmb': [-7.5, 7.5]}
         else:
             ylims = None if ('ylims' not in kwargs) else kwargs['ylims']
             yticks = None if ('yticks' not in kwargs) else kwargs['yticks']

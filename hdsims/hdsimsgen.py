@@ -80,12 +80,12 @@ class HDSimsGen(s10sims.S10Sims):
     
     def __init__(self, hd_sims_dir, lowres_sims_dir,
                  freqs=si.freqs, components=si.components,
-                 ra_ctr=si.ra_ctr, dec_ctr=si.dec_ctr, width=si.width, height=si.height, 
+                 ra_ctr=si.ra_ctr, dec_ctr=si.dec_ctr, width=si.width, height=si.height,
                  apod_width=si.apod_width, map_apod_width=None, res=si.hd_res,
                  cmb_seed=si.cmb_seed, pol=True, lmax4alms=si.lmax4alms, lmax4theo=si.lmax4theo,
                  verbose=False, log=None, make_output_dirs=True, **kwargs):
         """Initialize the `HDSimsGen` class for a given patch on the sky.
-        
+
         Parameters
         ----------
         hd_sims_dir : str
@@ -94,7 +94,7 @@ class HDSimsGen(s10sims.S10Sims):
             already exist.
         lowres_sims_dir : str
             The path to the directory where the full-sky lower-resolution
-            simulations and catalogs have been saved. 
+            simulations and catalogs have been saved.
         freqs : list of int, default=[30, 90, 148, 219, 277, 350]
             A list of map frequencies (in GHz). Each frequency in the list
             must be one of `30`, `90`, `148`, `219`, `277`, or `350`.
@@ -102,10 +102,10 @@ class HDSimsGen(s10sims.S10Sims):
             A list of map components to generate. Each component in the
             list must be one of: `'tsz'` for the thermal SZ (tSZ); `'ksz'`
             for the kinetic SZ (kSZ); `'cib'` for the cosmic infrared
-            background (CIB); `'radio'` for radio galaxies; and either 
+            background (CIB); `'radio'` for radio galaxies; and either
             `'cmb'` or `'unlensed_cmb'` for the lensed or unlensed CMB,
             respectively. If `'cmb'` is in the list, then unlensed CMB and
-            lensing convergence (`'kappa'`) simulations will also be 
+            lensing convergence (`'kappa'`) simulations will also be
             generated and saved. By default, the list includes all
             components except the `'unlensed_cmb'`.
         ra_ctr, dec_ctr : int or float, optional
@@ -115,23 +115,23 @@ class HDSimsGen(s10sims.S10Sims):
         width : int or float, default=10
             The width (in degrees) of the region of the maps to be used
             for analysis, e.g. when taking the power spectrum of the
-            simulations. 
+            simulations.
         height : int or float, optional
-            The height (in degrees) of the region of the maps to be used 
+            The height (in degrees) of the region of the maps to be used
             for analysis. If the `height` is not provided, it is assumed
             to be equal to the `width`.
-        apod_width : int or float, default=1
+        apod_width : int or float, default=0.5
             The width (in degrees) of the region along each edge of the
             map that will be apodized before calculating its power
             spectrum.
         cmb_seed : int, default=58
             The random seed to use when generating a realization of the
-            unlensed CMB from a theory power spectra. 
+            unlensed CMB from a theory power spectra.
         pol : bool, default=True
             If `pol=True`, CMB temperature and polarization (T, Q, and U)
             maps will be generated. Otherwise, only the temperature map
             will be generated.
-        
+
         Other Parameters
         ----------------
         lmax4alms : int, default=24000
@@ -141,12 +141,12 @@ class HDSimsGen(s10sims.S10Sims):
             The maximum multipole of any theory curves used to generate
             the simulations.
         map_apod_width : int or float, optional
-            The width (in degrees) of the region along each edge of the 
+            The width (in degrees) of the region along each edge of the
             map that will be apodized before taking any Fourier or
-            spherical harmonic transforms. The default is determined by
-            the parent class.
+            spherical harmonic transforms. By default, the `apod_width`
+            is used.
         res : int or float, default=0.04
-            The resolution of the maps, in arcminutes. 
+            The resolution of the maps, in arcminutes.
         verbose : bool, default=False
             Whether to print messages describing the progress of some
             calculations.
@@ -156,26 +156,26 @@ class HDSimsGen(s10sims.S10Sims):
             Otherwise, messages will be passed to the `print` function.
         make_output_dirs : bool, default=True
             Whether to create the sub-directories under the `hd_sims_dir`
-            where the output files will be saved. This should not be 
+            where the output files will be saved. This should not be
             changed, but it is provided to, e.g., allow you to check where
             the files will be saved before generating the simulations.
         **kwargs : dict
             Any keyword arguments that are needed to initialize the parent
             class for the lower-resolution, full-sky simulations.
         """
-        components = simutils.validate_sim_component_names(components) 
+        components = simutils.validate_sim_component_names(components)
         freqs = simutils.validate_sim_freqs(freqs)
-        super().__init__(hd_sims_dir, lowres_sims_dir, freqs=freqs, components=components, 
-                         ra_ctr=ra_ctr, dec_ctr=dec_ctr, width=width, height=height, 
+        super().__init__(hd_sims_dir, lowres_sims_dir, freqs=freqs, components=components,
+                         ra_ctr=ra_ctr, dec_ctr=dec_ctr, width=width, height=height,
                          apod_width=apod_width, map_apod_width=map_apod_width, res=res,
                          verbose=verbose, log=log, make_output_dirs=make_output_dirs, **kwargs)
         self.components = components.copy()
-        self.cmb_seed = cmb_seed
+        self.cmb_seed = int(cmb_seed)
         self.pol = pol
         self.lmax4alms = int(round(lmax4alms))
         self.lmax4theo = int(round(lmax4theo))
         self.theo_components = ['ksz', 'kappa', 'cmb', 'unlensed_cmb']
-        self.default_kwargs = {**self.default_kwargs, 'components': self.components, 
+        self.default_kwargs = {**self.default_kwargs, 'components': self.components,
                                'cmb_seed': self.cmb_seed, 'pol': self.pol}
         
     
@@ -866,7 +866,7 @@ class HDSimsGen(s10sims.S10Sims):
         """
         kwargs = self.get_kwargs_with_defaults(**kwargs)
         # for maps cut out from default region, include info about R.A. and dec. of map center:
-        if (kwargs['shape'][0] < self.shape[0]) or (kwargs['shape'][1] < self.shape[1]):
+        if (kwargs['shape'][-2] < self.shape[-2]) or (kwargs['shape'][-1] < self.shape[-1]):
             ra_ctr, dec_ctr, _, _ = maps.get_map_ctr_extent(kwargs['shape'], kwargs['wcs'])
         else:
             ra_ctr = None
@@ -1904,7 +1904,7 @@ class HDSimsMaps(HDSimsGen):
             The height (in degrees) of the region of the maps to be used
             for analysis. If the `height` is not provided, it is assumed
             to be equal to the `width`.
-        apod_width : int or float, default=1
+        apod_width : int or float, default=0.5
             The width (in degrees) of the region along each edge of the
             map that will be apodized before calculating its power
             spectrum.
@@ -1936,8 +1936,8 @@ class HDSimsMaps(HDSimsGen):
         map_apod_width : int or float, optional
             The width (in degrees) of the region along each edge of the
             map that will be apodized before taking any Fourier or
-            spherical harmonic transforms. The default is determined by
-            the parent class.
+            spherical harmonic transforms. By default, the `apod_width`
+            is used.
         res : int or float, default=0.04
             The resolution of the maps, in arcminutes.
         verbose : bool, default=False
@@ -2371,10 +2371,6 @@ class HDSimsMaps(HDSimsGen):
 
         We model the CMB-HD beam as a Gaussian beam, and model the
         instrumental noise as a random realization of white noise.
-
-        If `save=False`, the simulation will not be saved, but we will
-        save the apodization window (used when convolving the beam)
-        since it is (usually) used repeatedly.
         """
         components = self._get_map_components(**kwargs)
         shape = self.get_kwarg('shape', **kwargs)
@@ -2406,7 +2402,7 @@ class HDSimsMaps(HDSimsGen):
         sim = self.get_total_signal_sim(freq=freq, **kwargs)
         if beam:
             # apodize & convolve the beam
-            window = self.get_apod_window(shape=sim.shape, wcs=sim.wcs, apod_width=self.map_apod_width, save=True)
+            window = self.get_apod_window(shape=sim.shape, wcs=sim.wcs, apod_width=self.map_apod_width, save=save)
             sim = maps.convolve_sim_with_beam(sim, si.beam_fwhm[freq], window=window)
         if noise:
             noise_seed = self._get_noise_seed(freq, **kwargs)

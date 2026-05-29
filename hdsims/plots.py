@@ -127,8 +127,8 @@ def plot_map(imap, show=True, fname=None,
     linthresh : float, default=0.01
         The value below which the to use a linear, instead of logarithmic,
         color scale. Ignored if `lognorm=False`.
-    cbar_label : str, default=r'$\mu$K'
-        A label for the color bar.
+    cbar_label : str, optional
+        A label for the color bar. 
     rotate_cbar_label : bool, default=True
         If `rotate_cbar_label=True`, the color bar label is rotated so it
         is the same orientation as the x-axis label.
@@ -752,6 +752,7 @@ def plot_sim_spectra_comparison(spectra1, spectra2, label1, label2, show=True, p
     # settings for the plots (line styles, labels, etc.):
     kwargs1 = {'lw': 1.75, 'alpha': 0.7, }
     kwargs2 = {'ls': ':', 'lw': 2, 'alpha': 0.95}
+    theo_kwargs = {'ls': '--', 'lw': 1.1, 'alpha': 0.95}
     plt_colors = {30: 'tab:blue', 90: 'tab:green', 148: 'tab:olive', 
                   219: 'tab:orange', 277: 'tab:red', 350: 'tab:pink'}
     purple = '#bc8ae6' # for freq-independent components
@@ -823,7 +824,7 @@ def plot_sim_spectra_comparison(spectra1, spectra2, label1, label2, show=True, p
                 ells2, spec2 = utils.trim_spectrum_ell_range(spectra2[component][freq]['ells'], 
                                                              spectra2[component][freq][spec_key], 
                                                              lmin=lmin2, lmax=lmax2)
-                ax1.plot(ells2, spec2 * ells2**4, color='k', **kwargs2)
+                ax1.plot(ells2, spec2 * ells2**4, color='k', **theo_kwargs)
                 # plot frac. diff.:
                 if plot_fdiff:
                     ells1, spec1 = utils.trim_spectrum_ell_range(spectra1_for_fdiff[component][freq]['ells'], 
@@ -835,7 +836,7 @@ def plot_sim_spectra_comparison(spectra1, spectra2, label1, label2, show=True, p
                     plt_ells, plt_fdiff = utils.get_frac_diff(ells1, spec1, ells2, spec2, percent=True)
                     ax2.plot(plt_ells, plt_fdiff, color=cmb_colors[spec_key], lw=1)
             if add_legends:
-                line2, = ax1.plot([], [], label=cmb_label2, color='k', **{**kwargs2, 'lw': 2.5})
+                line2, = ax1.plot([], [], label=cmb_label2, color='k', **{**theo_kwargs, 'lw': 2})
                 line1, = ax1.plot([], [], label=label1, color='k', **kwargs1)
                 if pol:
                     # add an empty label to make legend nicer:

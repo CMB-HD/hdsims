@@ -549,7 +549,7 @@ def get_default_cambparams_for_sim(lmax=si.lmax4theo):
     pars.set_accuracy(AccuracyBoost=1.1, lSampleBoost=3.0, lAccuracyBoost=3.0,
                       DoLateRadTruncation=False, min_l_logl_sampling=10000)
     pars.set_cosmology(**cosmo_params)
-    pars.set_matter_power(kmax=10, k_per_logint=130)
+    pars.set_matter_power(kmax=100, k_per_logint=130)
     pars.set_for_lmax(lmax+500, lens_potential_accuracy=30, lens_margin=2050)
     pars.NonLinear = camb.model.NonLinear_both
     pars.NonLinearModel.set_params("mead2016")
@@ -1031,89 +1031,90 @@ def get_mode_coupling_fnames(apod_width, lmax, bin_dl=False, pol=True, beam_fwhm
 class Sims:
     """Base class for generating ultrahigh-resolution microwave sky
     simulations on a patch of the sky.
-    
-    Attributes for the specific patch of sky are defined here, and
-    the output directories for the patch of sky are created. We also
-    define default values for commonly-used keyword arguments.
+
+    Attributes for the specific patch of sky are defined here, along with
+    default values for commonly-used keyword arguments. The output
+    directories for the patch of sky are also created.
 
     Attributes
     ----------
     ra_ctr, dec_ctr, width, height : int or float
-    apod_width, map_apod_width : int or float
+    apod_width, map_apod_width, lowres_apod_width : int or float
     res : float
     verbose : bool
     log : logging.Logger or None
     shape : tuple of int
-        The shape `(Ny, Nx)` of the array of map pixels on the patch of 
-        sky with area `width * height` at the given location and 
-        resolution. `Ny` and `Nx` are the number of pixels along the dec. 
+        The shape `(Ny, Nx)` of the array of map pixels on the patch of
+        sky with area `width * height` at the given location and
+        resolution. `Ny` and `Nx` are the number of pixels along the dec.
         and R.A. directions, respectively.
     wcs : astropy.wcs.wcs.WCS
         Specifies the astropy World Coordinate System for the pixelization
-        of the patch of sky with area `width * height` at the given 
-        location and resolution. A pair of `shape, wcs` values are 
+        of the patch of sky with area `width * height` at the given
+        location and resolution. A pair of `shape, wcs` values are
         referred to as the "geometry" of a map.
     padded_width, padded_height : int or float
         The width and height (in degrees) of a slightly larger patch of
         sky, increased by the `map_apod_width` on each side.
     padded_shape, padded_wcs : tuple of int, astropy.wcs.wcs.WCS
         The geometry of the slightly larger patch of sky with a width and
-        height of `padded_width` and `padded_height`, respectively. 
+        height of `padded_width` and `padded_height`, respectively.
     padded2x_width, padded2x_height : int or float
         The width and height (in degrees) of an even larger patch of sky,
-        increased by `2 * map_apod_width` on each side.
+        increased by `map_apod_width + lowres_apod_width` on each side.
     padded2x_shape, padded2x_wcs : tuple of int, astropy.wcs.wcs.WCS
         The geometry of the even larger patch of sky with a width and
         height of `padded2x_width` and `padded2x_height`, respectively.
     default_kwargs : dict
         A dictionary of default values for commonly-used optional keyword
-        arguments. It will include the `width`, `height`, `apod_width`, 
+        arguments. It will include the `width`, `height`, `apod_width`,
         `shape`, and `wcs` attributes.
-    
+
     See Also
     --------
     pixell.enmap.geometry : Constructs the `shape`, `wcs` pair for a map.
-    
+
     Notes
     -----
     Attributes listed above without a description will have the same value
     as the corresponding parameter passed when initializing the class, or
-    the default value if it is not passed. 
-    
-    The patch of sky is defined by its area (width and height), 
+    the default value if it is not passed.
+
+    The patch of sky is defined by its area (width and height),
     location (R.A. and dec. of its center), and resolution (pixel size).
-    The simulated maps will be `pixell.enmap.ndmap` instances. 
-    
+    The simulated maps will be `pixell.enmap.ndmap` instances.
+
     The `width` and `height` parameters/attributes define the area of the
-    region of the maps used when calculating their power spectra, i.e., 
+    region of the maps used when calculating their power spectra, i.e.,
     this is the size of the "final" simulated map. The `apod_width` is the
     width of the region along each edge of the map that will be apodized
     before we take its power.
-    
-    When we need to apodize a map for any other reason (e.g., before
-    taking it's Fourier or spherical harmonic transform), the
-    `map_apod_width` is used instead of the `apod_width`. 
-    
-    The simulated maps are saved with a larger area (defined by 
-    `padded_width` and `padded_height`) that is increased by the 
+
+    When we need to apodize a high-resolution map for any other reason
+    (e.g., before taking it's Fourier or spherical harmonic transform),
+    the `map_apod_width` is used instead of the `apod_width`. For the
+    initial, lower-resolution CAR maps, the `lowres_apod_width` is used.
+
+    The simulated maps are saved with a larger area (defined by
+    `padded_width` and `padded_height`) that is increased by the
     `map_apod_width` on each side. This leaves room to apodize them if
-    necessary and still leave the inner `width` x `height` region 
+    necessary and still leave the inner `width` x `height` region
     unchanged. The simulations need to be apodized in the process of
     generating them, so they are initially generated on an even larger
     patch of sky (defined by `padded2x_width` and `padded2x_height`), and
     only the inner `padded_width` x `padded_height` "un-apodized" region
     is saved.
-    
+
     The simulations have only been tested for a minimum resolution of
     0.04 arcminutes (the default value of `res`).
     """
     
-    def __init__(self, hd_sims_dir, 
+    def __init__(self, hd_sims_dir,
                  ra_ctr=si.ra_ctr, dec_ctr=si.dec_ctr, width=si.width, height=si.height,
-                 apod_width=si.apod_width, map_apod_width=None, res=si.hd_res,
-                 verbose=False, log=None, make_output_dirs=True):
+                 apod_width=si.apod_width, map_apod_width=None, lowres_apod_width=None,
+                 res=si.hd_res, verbose=False, log=None, make_output_dirs=True):
         """Initialization for a given patch of sky.
-        
+
         Parameters
         ----------
         hd_sims_dir : str
@@ -1127,12 +1128,12 @@ class Sims:
         width : int or float, default=10
             The width (in degrees) of the region of the maps to be used
             for analysis, e.g. when taking the power spectrum of the
-            simulations. 
+            simulations.
         height : int or float, optional
-            The height (in degrees) of the region of the maps to be used 
+            The height (in degrees) of the region of the maps to be used
             for analysis. If the `height` is not provided, it is assumed
             to be equal to the `width`.
-        apod_width : int or float, default=1
+        apod_width : int or float, default=0.5
             The width (in degrees) of the region along each edge of the
             map that will be apodized before calculating its power
             spectrum.
@@ -1140,12 +1141,17 @@ class Sims:
         Other Parameters
         ----------------
         map_apod_width : int or float, optional
-            The width (in degrees) of the region along each edge of the 
-            map that will be apodized before taking any Fourier or
-            spherical harmonic transforms. By default, `apod_width/2` will
-            be used.
+            The width (in degrees) of the region along each edge of the
+            high-resolution maps that will be apodized before taking any
+            Fourier or spherical harmonic transforms. By default, the
+            `apod_width` will be used.
+        lowres_apod_width : int or float, optional
+            The width (in degrees) of the region along each edge of the
+            initial, lower-resolution maps that will be apodized before
+            taking any Fourier or spherical harmonic transforms. By default,
+            the `map_apod_width` will be used.
         res : int or float, default=0.04
-            The resolution of the maps, in arcminutes. 
+            The resolution of the maps, in arcminutes.
         verbose : bool, default=False
             Whether to print messages describing the progress of some
             calculations.
@@ -1155,20 +1161,20 @@ class Sims:
             Otherwise, messages will be passed to the `print` function.
         make_output_dirs : bool, default=True
             Whether to create the sub-directories under the `hd_sims_dir`
-            where the output files will be saved. This should not be 
+            where the output files will be saved. This should not be
             changed, but it is provided to, e.g., allow you to check where
             the files will be saved before generating the simulations.
 
         Notes
         -----
         By default (if `make_output_dirs=True`), a sub-directory for this
-        patch of sky will be created in the `hd_sims_dir`. The name of 
+        patch of sky will be created in the `hd_sims_dir`. The name of
         this sub-directory depends on the `ra_ctr`, `dec_ctr`, `width`,
         `height`, and `res` parameters.
         """
         self.verbose = verbose
         self.log = log
-        
+
         # define attributes for the patch of sky:
         self.res = res
         self.ra_ctr = ra_ctr
@@ -1176,11 +1182,12 @@ class Sims:
         self.width = width
         self.height = width if (height is None) else height
         self.apod_width = apod_width
-        self.map_apod_width = apod_width / 2 if (map_apod_width is None) else map_apod_width
-        
+        self.map_apod_width = apod_width if (map_apod_width is None) else map_apod_width
+        self.lowres_apod_width = self.map_apod_width if (lowres_apod_width is None) else lowres_apod_width
+
         # dict of directories where output will be saved:
-        self._output_dirs = get_output_dirs(hd_sims_dir, ra_ctr=self.ra_ctr, dec_ctr=self.dec_ctr, 
-                                            width=self.width, height=self.height, res=self.res, 
+        self._output_dirs = get_output_dirs(hd_sims_dir, ra_ctr=self.ra_ctr, dec_ctr=self.dec_ctr,
+                                            width=self.width, height=self.height, res=self.res,
                                             make_dirs=make_output_dirs)
 
         # the `width` and `height` define the patch of sky that will
@@ -1192,23 +1199,23 @@ class Sims:
         # `width` x `height` region:
         self.padded_width = self.width + 2 * self.map_apod_width
         self.padded_height = self.height + 2 * self.map_apod_width
-        self.padded_shape, self.padded_wcs = maps.get_shape_wcs(self.res, self.ra_ctr, self.dec_ctr, 
+        self.padded_shape, self.padded_wcs = maps.get_shape_wcs(self.res, self.ra_ctr, self.dec_ctr,
                                                                 self.padded_width, height=self.padded_height)
         # we need to initially generate the sims on an even larger patch
         # of sky so the maps can be apodized during intermediate steps:
-        self.padded2x_width = self.padded_width + 2 * self.map_apod_width
-        self.padded2x_height = self.padded_height + 2 * self.map_apod_width
-        self.padded2x_shape, self.padded2x_wcs = maps.get_shape_wcs(self.res, self.ra_ctr, self.dec_ctr, 
+        self.padded2x_width = self.padded_width + 2 * self.lowres_apod_width
+        self.padded2x_height = self.padded_height + 2 * self.lowres_apod_width
+        self.padded2x_shape, self.padded2x_wcs = maps.get_shape_wcs(self.res, self.ra_ctr, self.dec_ctr,
                                                                     self.padded2x_width, height=self.padded2x_height)
-        
+
         # when `verbose=True`, we print out the dimensions (width and height)
-        # of the maps a few times, so we define those strings here: 
+        # of the maps a few times, so we define those strings here:
         self._map_area_info = f'{round(self.width,2)} deg. x {round(self.height,2)} deg.'
         self._padded_map_area_info = f'{round(self.padded_width,2)} deg. x {round(self.padded_height,2)} deg.'
         self._padded2x_map_area_info = f'{round(self.padded2x_width,2)} deg. x {round(self.padded2x_height,2)} deg.'
 
         self.default_kwargs = {'width': self.width, 'height': self.height,
-                               'shape': self.shape, 'wcs': self.wcs, 
+                               'shape': self.shape, 'wcs': self.wcs,
                                'apod_width': self.apod_width}
     
     

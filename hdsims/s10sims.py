@@ -290,13 +290,13 @@ def validate_cib_model_name(cib_model, valid_model_names=si.cib_model_names):
 class S10Sims(lowres_sims.LowResSims):
     """Cut out maps and catalogs for a patch of sky from the full-sky
     Sehgal et. al. 2010 ('S10', arXiv:0908.0540) simulations.
-    
+
     The intermediate, lower-resolution simulations of diffuse components
     (tSZ, kSZ, and lensing convergence maps) are projected from the full
     sky HEALPix maps to CAR maps on a patch of the sky. The catalogs of
     CIB and radio galaxies within the patch of sky are used to generate a
-    set of lower-resolution CAR maps of the CIB and radio sources. 
-    
+    set of lower-resolution CAR maps of the CIB and radio sources.
+
     Attributes
     ----------
     `cib_model` : str or None
@@ -304,16 +304,20 @@ class S10Sims(lowres_sims.LowResSims):
         If the default `hdsims` binning is not used  for power spectra,
         `bin_info` is a string used in filenames that describes the
         binning being used. Here, the default binning is used.
-    
+
     Notes
     -----
+    The methods defined in `hdsims.lowres_sims.LowResSims` (some of which
+    are overridden here) are intended to be the only ones that a user may
+    need to use from this class.
+
     Attributes listed above without a description will have the same value
     as the corresponding parameter passed when initializing the class, or
-    the default value if it is not passed. 
-    
-    The `cib_model` attribute will be added to the dictionary of 
-    `default_kwargs` (inherited from `hdsims.simutils.Sims`). The 
-    following methods of `hdsims.lowres_sims.LowResSims` are overridden 
+    the default value if it is not passed.
+
+    The `cib_model` attribute will be added to the dictionary of
+    `default_kwargs` (inherited from `hdsims.simutils.Sims`). The
+    following methods of `hdsims.lowres_sims.LowResSims` are overridden
     here:
         - `get_sim_catalog`
         - `get_intermediate_sim`
@@ -321,16 +325,16 @@ class S10Sims(lowres_sims.LowResSims):
         - `apodize_intermediate_map`
         - `take_intermediate_map_power`
         - `get_lowres_sim_component_name`
-    The `lowres_name` attribute is also overridden. Otherwise, see the 
-    `hdsims.simutils.Sims` and `hdsims.lowres_sims.LowResSims` classes for
-    more information about the inherited attributes and methods. 
-    
-    The methods defined in `hdsims.lowres_sims.LowResSims` (some of which
-    are overridden here) are intended to be the only ones that a user may
-    need to use this class.
-    
-    The full-sky S10 simulations are available on LAMBDA 
-    (https://lambda.gsfc.nasa.gov/simulation/full_sky_sims_ov.html). 
+    The `lowres_name` attribute is also overridden. A minimum
+    `lowres_apod_width` of 0.3 degrees is imposed due to the resolution
+    (0.86 arcminutes) of the full-sky S10 lensing convergence map; this
+    ensures that the apodization width is at least 20 pixels in that map.
+    Otherwise, see the `hdsims.lowres_sims.LowResSims` and
+    `hdsims.simutils.Sims` classes for more information about the
+    inherited attributes and methods.
+
+    The full-sky S10 simulations are available on LAMBDA
+    (https://lambda.gsfc.nasa.gov/simulation/full_sky_sims_ov.html).
     The maps are in HEALPix format with an `nside` parameter of `8192`
     (approximately 0.43 arcminute resolution) for the tSZ, kSZ, CIB, and
     radio galaxies, or `4096` (approximately 0.86 arcminute resolution)
@@ -341,39 +345,36 @@ class S10Sims(lowres_sims.LowResSims):
     The HEALPix pixel window is deconvolved from the full-sky S10 tSZ and
     kSZ maps, and they are converted to units of uK before cutting them
     out as CAR maps for the patch of sky. The S10 tSZ sims are also
-    multiplied by 0.75 (as was done in arXiv:1808.07445). Since the S10
-    catalog of SZ clusters is not used to generate any simulations, we do
-    not modify any of its values (i.e., nothing in the SZ catalog will be
-    multiplied by 0.75).
+    multiplied by 0.75 (as was done in arXiv:1808.07445), and the S10 kSZ
+    sims are multiplied by 1/sqrt(2). Since the S10 catalog of SZ
+    clusters is not used to generate any simulations, we do not modify
+    any of its values (i.e., nothing in the SZ catalog will be multiplied
+    by 0.75).
 
     We also multiply all CIB fluxes at each frequency in the original
     full-sky S10 catalog by 0.75 (as was done in arXiv:1808.07445) before
     saving the CIB catalog on the patch of sky. If the `cib_model` is not
-    `None`, then this catalog is modified before being used to generate
-    CIB simulations; see arXiv:XXXX.XXXXX (!! TODO !!) for further details.
-    
-    A minimum `map_apod_width` of 0.3 degrees is imposed due to the 0.86
-    arcminute resolution of the full-sky S10 lensing convergence map; this
-    ensures that the apodization width is at least 20 pixels in that map.
+    `'s10'`, then this catalog is further modified before being used to
+    generate CIB simulations; see arXiv:XXXX.XXXXX (!! TODO !!) for further details.
     """
     
     def __init__(self, hd_sims_dir, lowres_sims_dir,
                  freqs=si.freqs, components=si.components,
-                 ra_ctr=si.ra_ctr, dec_ctr=si.dec_ctr, width=si.width, height=si.height, 
+                 ra_ctr=si.ra_ctr, dec_ctr=si.dec_ctr, width=si.width, height=si.height,
                  apod_width=si.apod_width, map_apod_width=None, res=si.hd_res,
                  make_output_dirs=True, verbose=False, log=None, cib_model=si.baseline_cib_model_name):
         """Initialization for the intermediate S10-resolution simulations
         on a patch of sky.
-        
+
         Parameters
         ----------
         hd_sims_dir : str
             The path to the directory where all of the output files for
-            this patch of sky will be saved. This directory will be 
+            this patch of sky will be saved. This directory will be
             created if it does not already exist.
         lowres_sims_dir : str
             The path to the directory where the full-sky S10 simulations
-            and catalogs have been saved. 
+            and catalogs have been saved.
         freqs : list of int, default=[30, 90, 148, 219, 277, 350]
             A list of available frequencies (in GHz) for the simulations
             and catalogs. Each frequency in the list must be one of `30`,
@@ -392,12 +393,12 @@ class S10Sims(lowres_sims.LowResSims):
         width : int or float, default=10
             The width (in degrees) of the region of the maps to be used
             for analysis, e.g. when taking the power spectrum of the
-            simulations. 
+            simulations.
         height : int or float, optional
-            The height (in degrees) of the region of the maps to be used 
+            The height (in degrees) of the region of the maps to be used
             for analysis. If the `height` is not provided, it is assumed
             to be equal to the `width`.
-        apod_width : int or float, default=1
+        apod_width : int or float, default=0.5
             The width (in degrees) of the region along each edge of the
             map that will be apodized before calculating its power
             spectrum.
@@ -405,15 +406,14 @@ class S10Sims(lowres_sims.LowResSims):
         Other Parameters
         ----------------
         cib_model : str, default='baseline'
-            The name of the HD CIB model to use. The options are 
-            `'baseline'` or `'alternative`'. The default is the 
+            The name of the HD CIB model to use. The options are
+            `'baseline'` or `'alternative`'. The default is the
             `'baseline'` CIB model used in arXiv:XXXX.XXXXX (!! TODO !!).
         map_apod_width : int or float, optional
-            The width (in degrees) of the region along each edge of the 
-            map that will be apodized before taking any Fourier or
-            spherical harmonic transforms. By default, the value is either
-            `apod_width/2`; however, if `apod_width/2` is less than 0.3, a
-            default of `map_apod_width=0.3` is used. 
+            The width (in degrees) of the region along each edge of the
+            high-resolution maps that will be apodized before taking any
+            Fourier or spherical harmonic transforms. By default, the
+            `apod_width` is used.
         res : int or float, default=0.04
             The resolution of the ultrahigh-resolution maps, in arcminutes.
         verbose : bool, default=False
@@ -425,10 +425,10 @@ class S10Sims(lowres_sims.LowResSims):
             Otherwise, messages will be passed to the `print` function.
         make_output_dirs : bool, default=True
             Whether to create the sub-directories under the `hd_sims_dir`
-            where the output files will be saved. This should not be 
+            where the output files will be saved. This should not be
             changed, but it is provided to, e.g., allow you to check where
             the files will be saved before generating the simulations.
-            
+
         Warns
         -----
         UserWarning
@@ -436,25 +436,24 @@ class S10Sims(lowres_sims.LowResSims):
             R.A. = 0 or 90 degrees, where the full-sky kSZ and lensing
             convergence maps have discontinuities.
         """
-        # set `map_apod_width` to be at least ~20 pixels for S10 kappa map:
-        min_map_apod_width = 0.3 # degrees
-        if map_apod_width is None:
-            map_apod_width = apod_width / 2
-            if map_apod_width < min_map_apod_width:
-                map_apod_width = min_map_apod_width
+        # set `lowres_apod_width` to be at least ~20 pixels for S10 kappa map:
+        min_lowres_apod_width = 0.3 # degrees
+        lowres_apod_width = apod_width if (map_apod_width is None) else map_apod_width
+        if lowres_apod_width < min_lowres_apod_width:
+            lowres_apod_width = min_lowres_apod_width
         super().__init__(hd_sims_dir, lowres_sims_dir, lowres_name='S10',
                          lowres_sim_components=si.s10_sim_components, freqs=simutils.validate_sim_freqs(freqs),
-                         ra_ctr=ra_ctr, dec_ctr=dec_ctr, width=width, height=height, 
-                         apod_width=apod_width, map_apod_width=map_apod_width, res=res,
-                         verbose=verbose, log=log, make_output_dirs=make_output_dirs,)
+                         ra_ctr=ra_ctr, dec_ctr=dec_ctr, width=width, height=height,
+                         apod_width=apod_width, map_apod_width=map_apod_width, lowres_apod_width=lowres_apod_width,
+                         res=res, verbose=verbose, log=log, make_output_dirs=make_output_dirs,)
         self.cib_model = validate_cib_model_name(cib_model)
         self.default_kwargs['cib_model'] = self.cib_model
         self.bin_info = None # use default binning if sim spectra are needed
-        
+
         # warn the user if their patch crosses dec = 0 or RA = 0, 90, 180,
-        # or 270, because the S10 kSZ & kappa maps have discontinuities 
+        # or 270, because the S10 kSZ & kappa maps have discontinuities
         # at these locations:
-        ra_min, ra_max, dec_min, dec_max = maps.get_patch_corner_coords(self.ra_ctr, self.dec_ctr, 
+        ra_min, ra_max, dec_min, dec_max = maps.get_patch_corner_coords(self.ra_ctr, self.dec_ctr,
                                                                         self.width, height=self.height)
         ras = [0, 90, 180, 270]
         coord_info = [f'R.A. = {round(ra, 2)} deg.' for ra in ras if utils.ra_is_in_patch(ra, ra_min, ra_max)]
@@ -555,7 +554,8 @@ class S10Sims(lowres_sims.LowResSims):
         
         The HEALPix pixel window will be deconvolved from the full-sky S10
         tSZ and kSZ maps, and they will be converted to units of uK. The
-        S10 tSZ maps are also multiplied by 0.75.
+        S10 tSZ maps are also multiplied by 0.75, and the S10 kSZ maps are
+        multiplied by 1/sqrt(2).
         
         Parameters
         ----------
@@ -570,10 +570,11 @@ class S10Sims(lowres_sims.LowResSims):
         save : bool, default=True
             Only used for `component='tsz'` or `component='ksz'`. 
             If `save=True`, the full-sky pixel-window-deconvolved map in
-            units of uK (with tSZ multiplied by 0.75) will be saved. This
-            may be useful when cutting out different patches of sky from
-            the full-sky maps, since we need to take a spherical harmonic
-            transform of the maps to deconvolve the pixel window.
+            units of uK (with tSZ multiplied by 0.75 and kSZ multiplied 
+            by 1/sqrt(2)) will be saved. This may be useful when cutting 
+            out different patches of sky from the full-sky maps, since we 
+            need to take a spherical harmonic transform of the maps to 
+            deconvolve the pixel window.
         
         Returns
         -------
@@ -595,8 +596,13 @@ class S10Sims(lowres_sims.LowResSims):
             # only need one freq. for kSZ:
             freq = si.s10_ksz_map_freq if (component == 'ksz') else simutils.validate_sim_freq(freq) 
             # deconvolve pixel window from full-sky, convert to uK, 
-            # and multiply by 0.75 for tSZ:
-            scaling_factor = 0.75 if (component == 'tsz') else 1 
+            # and multiply by 0.75 for tSZ or by 1/sqrt(2) for kSZ:
+            if component == 'tsz':
+                scaling_factor = 0.75
+            elif component == 'ksz':
+                scaling_factor = 1 / np.sqrt(2)
+            else:
+                scaling_factor = 1
             orig_s10_fname = self.get_fullsky_s10_sim_fname(component, freq=freq, pixwin_deconvolved_uK=False)
             self.infomsg(f"deconvolving pixel window from full-sky healpix {freq} GHz {component} map")
             t = time.time()
@@ -667,7 +673,7 @@ class S10Sims(lowres_sims.LowResSims):
             respectively.
         padded_ntimes : int, default=2
             The number of times the patch of sky has been 'padded', i.e.
-            increased by the `map_apod_width` on each side. The allowed
+            increased by the apodization width on each side. The allowed
             values are:
             - `padded_ntimes=0` for patch with an area given by the `width`
               and `height` attributes defined during initialization,
@@ -712,36 +718,36 @@ class S10Sims(lowres_sims.LowResSims):
     
 
     def get_intermediate_map_apod_window_fname(self, component, **kwargs):
-        """Return the path to the apodization window for a 
+        """Return the path to the apodization window for a
         S10-resolution CAR map.
-        
+
         Parameters
         ----------
         component : str
             The name of the map component. The available S10 components
-            are `'ksz'`, `'tsz'`, `'kappa'`, `'cib'`, or `'radio'` for 
-            the kSZ, tSZ, lensing convergence, CIB, and radio maps, 
+            are `'ksz'`, `'tsz'`, `'kappa'`, `'cib'`, or `'radio'` for
+            the kSZ, tSZ, lensing convergence, CIB, and radio maps,
             respectively.
-        
+
         Returns
         -------
         fname : str
             The path to the apodization window.
-        
+
         Other Parameters
         ----------------
         **kwargs : dict
             Optional keyword arguments for the apodization window:
             - The `width` and `height` (int or float), in degrees, of the
-              map. By default, the values of the `padded2x_width` and 
+              map. By default, the values of the `padded2x_width` and
               `padded2x_height` attributes are used.
             - The `apod_width` (degrees) to use. The default is given by
-              the `map_apod_width` attribute. 
+              the `lowres_apod_width` attribute.
         """
-        defaults = {'width': self.padded2x_width, 'height': self.padded2x_height, 'apod_width': self.map_apod_width}
+        defaults = {'width': self.padded2x_width, 'height': self.padded2x_height, 'apod_width': self.lowres_apod_width}
         kwargs = self.get_kwargs_with_defaults(defaults=defaults, **kwargs)
         component = simutils.validate_sim_component_name(component, valid_components=si.s10_sim_components)
-        fname = simutils.get_apod_window_fname(kwargs['apod_width'], kwargs['width'], kwargs['height'], 
+        fname = simutils.get_apod_window_fname(kwargs['apod_width'], kwargs['width'], kwargs['height'],
                                                maps_dir=self.intermediate_maps_dir())
         if component == 'kappa':
             fname = fname.replace('.fits', '_s10kappa.fits')
@@ -776,7 +782,7 @@ class S10Sims(lowres_sims.LowResSims):
               map. By default, the values of the `padded2x_width` and
               `padded2x_height` attributes are used.
             - The `apod_width` (degrees) to use. The default is given by
-              the `map_apod_width` attribute.
+              the `lowres_apod_width` attribute.
 
         See Also
         --------
@@ -789,7 +795,7 @@ class S10Sims(lowres_sims.LowResSims):
         if os.path.exists(fname):
             window = enmap.read_map(fname)
         else:
-            defaults = {'width': self.padded2x_width, 'height': self.padded2x_height, 'apod_width': self.map_apod_width}
+            defaults = {'width': self.padded2x_width, 'height': self.padded2x_height, 'apod_width': self.lowres_apod_width}
             kwargs = self.get_kwargs_with_defaults(defaults=defaults, **kwargs)
             res = self.get_intermediate_map_res(component)
             shape, wcs = maps.get_shape_wcs(res, self.ra_ctr, self.dec_ctr, kwargs['width'], height=kwargs['height'])
@@ -808,12 +814,12 @@ class S10Sims(lowres_sims.LowResSims):
     #  power spectra of the S10 sims on our patch of sky:
     # ---------------------------------------------------------------
         
-    def binning_file(self):
+    def binning_file(self, save=True):
         """Returns the path to the binning file used to bin the power
         spectra of the simulations. 
         """
         fname = simutils.get_binning_file_name(binning_dir=self.binning_dir())
-        if not os.path.exists(fname):
+        if save and not os.path.exists(fname):
             simpower.save_binning_file(fname)
         return fname
     
@@ -1844,19 +1850,19 @@ class S10Sims(lowres_sims.LowResSims):
     
     def apodize_intermediate_map(self, imap):
         """Apodize an intermediate, lower-resolution map.
-        
+
         If the map has the same area as the area defined by the `width`
         and `height` attributes, it will be apodized over a region with a
         width given by the `apod_width` attribute along each edge.
-        Otherwise, the `map_apod_width` attribute will be used instead.
-        
+        Otherwise, the `lowres_apod_width` attribute will be used instead.
+
         Parameters
         ----------
         imap : pixell.enmap.ndmap
-            The input map. It must be the same resolution as the 
+            The input map. It must be the same resolution as the
             lower-resolution simulations, and it must contain the region
             defined by the `width` and `height` attributes.
-        
+
         Returns
         -------
         pixell.enmap.ndmap
@@ -1865,7 +1871,7 @@ class S10Sims(lowres_sims.LowResSims):
         # for the s10 sims, the kappa map has a lower resolution than the
         # others, so we usually use the `component` name to determine the
         # resolution of the map. here we don't know which `component` we
-        # have, so check the resolution of the `imap`: 
+        # have, so check the resolution of the `imap`:
         imap_res = maps.get_map_resolution(imap.shape, imap.wcs)
         if np.isclose(imap_res, si.s10_res):
             component = 'tsz' # specific name doesn't matter
@@ -1894,10 +1900,10 @@ class S10Sims(lowres_sims.LowResSims):
         else:
             height = imap_height
         # apodization width depends on the width and height:
-        if (width > self.width) or (height > self.height): 
-            apod_width = self.map_apod_width # for maps used to generate the HD sims
+        if (width > self.width) or (height > self.height):
+            apod_width = self.lowres_apod_width # for maps used to generate the HD sims
         else:
-            apod_width = self.apod_width # for power spectra
+            apod_width = self.apod_width # for power spectra (same as HD sims)
         window = self.get_intermediate_map_apod_window(component, width=width, height=height, apod_width=apod_width)
         return imap * window
         
