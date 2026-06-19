@@ -151,6 +151,7 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
                          ra_ctr=ra_ctr, dec_ctr=dec_ctr, width=width, height=height,
                          apod_width=apod_width, map_apod_width=map_apod_width, res=res,
                          cmb_seed=cmb_seed, pol=pol, noise_seeds=noise_seeds, lmax4alms=lmax4alms, lmax4theo=lmax4theo,
+                         lmax=lmax, bin_edges=bin_edges, bin_info=bin_info,
                          verbose=verbose, log=log, make_output_dirs=make_output_dirs, **kwargs)
         self.default_components_for_plot = si.components
 
