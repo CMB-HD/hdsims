@@ -11,7 +11,7 @@ The `hdsims` code we provide here can be used to produce:
 - Catalogs of the SZ clusters and point sources (CIB and radio) contained in the simulations
 - Accurate power spectra of the simulations, corrected for effects such as the incomplete sky coverage or an instrumental beam.
 
-We also provide examples that can reproduce the [HD simulations](https://lambda.gsfc.nasa.gov/simulation/ultrahigh_resolution_sims.html) that we have released and Figures 2, 3, and 4 of [TODO:link to paper](https://arxiv.org/).
+We also provide examples that can reproduce the [HD simulations](https://lambda.gsfc.nasa.gov/simulation/ultrahigh_resolution_sims.html) that we have released and Figures 3, 4, and 5 of [TODO:link to paper](https://arxiv.org/).
 
 
 ---
