@@ -2,7 +2,7 @@
 
 This repository contains the methods to generate and analyze ultrahigh-resolution (0.04 arcminute) microwave simulations on a patch of the sky.
 
-These simulations are used in [TODO:link to paper](https://arxiv.org/); if you use this code (or any of the [public products (TODO: link to HD sims on LAMBDA)](https://lambda.gsfc.nasa.gov) that it has generated), please cite that work and the lower-resolution counterpart on which the simulations you generate are based. By default, our simulations are based on the [publicly available](https://lambda.gsfc.nasa.gov/simulation/full_sky_sims_ov.html) full-sky maps and catalogs used in [Sehgal et al. (2010)](https://arxiv.org/abs/0908.0540) (which we will refer to as "S10").
+These simulations are used in [TODO:link to paper](https://arxiv.org/); if you use this code (or any of the [public products](https://lambda.gsfc.nasa.gov/simulation/ultrahigh_resolution_sims.html) that it has generated), please cite that work and the lower-resolution counterpart on which the simulations you generate are based. By default, our simulations are based on the [publicly available](https://lambda.gsfc.nasa.gov/simulation/full_sky_sims_ov.html) full-sky maps and catalogs used in [Sehgal et al. (2010)](https://arxiv.org/abs/0908.0540) (which we will refer to as "S10").
 
 
 
@@ -11,7 +11,7 @@ The `hdsims` code we provide here can be used to produce:
 - Catalogs of the SZ clusters and point sources (CIB and radio) contained in the simulations
 - Accurate power spectra of the simulations, corrected for effects such as the incomplete sky coverage or an instrumental beam.
 
-We also provide examples that can reproduce the [HD simulations (TODO: link to HD sims on LAMBDA)](https://lambda.gsfc.nasa.gov) that we have released and Figures 2, 3, and 4 of [TODO:link to paper](https://arxiv.org/).
+We also provide examples that can reproduce the [HD simulations](https://lambda.gsfc.nasa.gov/simulation/ultrahigh_resolution_sims.html) that we have released and Figures 2, 3, and 4 of [TODO:link to paper](https://arxiv.org/).
 
 
 ---
@@ -82,7 +82,7 @@ where `/path/to/myS10sims` is the path to the directory where you would like to 
 
 ## How to download the public HD sims from LAMBDA
 
-We provide a command-line script to download the HD simulations we provide on **[TODO:LINK2LAMBDA]()** for a $10^\circ \times 10^\circ$ patch of sky. If you would like to download these simulations, from the `hdsims` directory (i.e., the directory where this readme file is located), run the command
+We provide a command-line script to download the HD simulations we provide on [LAMBDA](https://lambda.gsfc.nasa.gov/simulation/ultrahigh_resolution_sims.html) for a $10^\circ \times 10^\circ$ patch of sky. If you would like to download these simulations, from the `hdsims` directory (i.e., the directory where this readme file is located), run the command
 
 
 ```
@@ -108,7 +108,7 @@ simlib.generate_hd_sims_and_calculate_powerspectra()
 By default, this will generate a set of 0.04 arcminute simulated maps for a $10^\circ \times 10^\circ$ patch of sky centered at R.A. = $6^\circ$, dec. = $6^\circ$ and take their power spectra.
 
 
-If you download the HD sims we provide on **[TODO:LINK2LAMBDA]()**, then you can pass the same `hd_sims_dir` that you used when downloading the sims. In this case, it would not be necessary to download the S10 sims, and you could set `lowres_sims_dir=None` in the snippet above.
+If you download the HD sims we provide on [LAMBDA](https://lambda.gsfc.nasa.gov/simulation/ultrahigh_resolution_sims.html), then you can pass the same `hd_sims_dir` that you used when downloading the sims. In this case, it would not be necessary to download the S10 sims, and you could set `lowres_sims_dir=None` in the snippet above.
 
 
 ### Examples
@@ -116,6 +116,6 @@ If you download the HD sims we provide on **[TODO:LINK2LAMBDA]()**, then you can
 We provide two examples in the `examples` directory:
 
 1. `examples/example_2x2.ipynb`: This is a general example of how to use `hdsims` to generate a set of simulations on a given patch of sky and take their power spectra. In this example we generate 90 GHz maps for a $2^\circ \times 2^\circ$ patch of sky.
-2. `examples/reproduce_10x10.ipynb`: An example to either reproduce *all* of the public simulation products provided on **[TODO:LINK2LAMBDA]()** (used in **[TODO:LINK2PAPER]()**) for a  $10^\circ \times 10^\circ$ patch of sky, or to *only* reproduce the plots in **[TODO:LINK2PAPER]()** without needing to generate any simulations.
+2. `examples/reproduce_10x10.ipynb`: An example to either reproduce *all* of the public simulation products provided on [LAMBDA](https://lambda.gsfc.nasa.gov/simulation/ultrahigh_resolution_sims.html) (used in **[TODO:LINK2PAPER]()**) for a  $10^\circ \times 10^\circ$ patch of sky, or to *only* reproduce the plots in **[TODO:LINK2PAPER]()** without needing to generate any simulations.
 
 

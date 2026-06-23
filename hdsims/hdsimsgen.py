@@ -25,8 +25,8 @@ class HDSimsGen(s10sims.S10Sims):
     
     By default (i.e., with all parameters set to their default values),
     this class will generate the simulations used in MacInnis et. al. 2026
-    (arXiv:XXXX.XXXX !! TODO !!), which are also available on LAMBDA
-    (!! TODO : LINK !!).
+    (arXiv:XXXX.XXXX !! TODO !!), which are also available on LAMBDA:
+    https://lambda.gsfc.nasa.gov/simulation/ultrahigh_resolution_sims.html
 
     Attributes
     ----------

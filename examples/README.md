@@ -14,9 +14,9 @@ We explain how to use these files (if necessary) within the `example_2x2.ipynb` 
 
 ## Reproducing the sim plots in **[TODO:LINK2PAPER]()**
 
-The notebook `reproduce_10x10.ipynb` will reproduce Figures 3 and 4 in **[TODO:LINK2PAPER]()** using the sim and theory power spectra we provide (i.e., you do not need to calculate anything).
+The notebook `reproduce_10x10.ipynb` will reproduce Figures 4 and 5 in **[TODO:LINK2PAPER]()** using the sim and theory power spectra we provide (i.e., you do not need to calculate anything).
 
-- The `reproduce_10x10_plots.py` and `download_90GHz_HDsims_maps.sh` scripts can be used if you would also like to reproduce the plot of the 90 GHz maps (Figure 2 in **[TODO:LINK2PAPER]()**).
+- The `reproduce_10x10_plots.py` and `download_90GHz_HDsims_maps.sh` scripts can be used if you would also like to reproduce the plot of the 90 GHz maps (Figure 3 in **[TODO:LINK2PAPER]()**).
 - The `reproduce_10x10.py`, `download_all_HDsims_data.sh`, and `download_all_S10sims_data.sh` scripts can be used if you would like to reproduce *all* of the products we release (simulations, power spectra, etc.)
 
 We explain how to use these files (if necessary) within the `reproduce_10x10.ipynb` notebook.

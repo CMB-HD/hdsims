@@ -46,7 +46,6 @@ def _github_url(fname, simlib):
     str
         The URL to the corresponding pre-computed file on Github.
     """
-    # !!! TODO !!! : update to real github URL
     url_root = 'https://raw.githubusercontent.com/CMB-HD/sim_files_for_example_notebooks/refs/heads/main'
     hd_sims_dir = _get_hd_sims_dir(simlib)
     return fname.replace(hd_sims_dir, url_root)
@@ -269,7 +268,6 @@ def _commands_to_download_all(simlib):
     `simlib` is the instance of `hdsims.HDSims` used for the example.
     """
     hd_sims_dir, sims_dir_name = os.path.split(simlib.sim_dir())
-    # !!! TODO !!! : update to real github URL
     git_repo_name = 'sim_files_for_example_notebooks'
     git_repo_url = f'https://github.com/CMB-HD/{git_repo_name}.git'
     repo_path = os.path.join(hd_sims_dir, git_repo_name)
