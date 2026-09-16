@@ -256,8 +256,8 @@ def validate_cib_model_name(cib_model, valid_model_names=si.cib_model_names):
 
     The 'CIB model' refers to the the CIB catalog for the simulations is
     generated from the original full-sky catalog of the Sehgal et. al.
-    (arXiv:0908.0540) simulations. See arXiv:XXXX.XXXXX (!! TODO:LINK2PAPER !!)
-    for further details.
+    (arXiv:0908.0540) simulations. See arXiv:2609.16128 for further 
+    details.
 
     Parameters
     ----------
@@ -355,7 +355,7 @@ class S10Sims(lowres_sims.LowResSims):
     full-sky S10 catalog by 0.75 (as was done in arXiv:1808.07445) before
     saving the CIB catalog on the patch of sky. If the `cib_model` is not
     `'s10'`, then this catalog is further modified before being used to
-    generate CIB simulations; see arXiv:XXXX.XXXXX (!! TODO !!) for further details.
+    generate CIB simulations; see arXiv:2609.16128 for further details.
     """
     
     def __init__(self, hd_sims_dir, lowres_sims_dir,
@@ -408,7 +408,7 @@ class S10Sims(lowres_sims.LowResSims):
         cib_model : str, default='baseline'
             The name of the HD CIB model to use. The options are
             `'baseline'` or `'alternative`'. The default is the
-            `'baseline'` CIB model used in arXiv:XXXX.XXXXX (!! TODO !!).
+            `'baseline'` CIB model used in arXiv:2609.16128
         map_apod_width : int or float, optional
             The width (in degrees) of the region along each edge of the
             high-resolution maps that will be apodized before taking any

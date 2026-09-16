@@ -332,7 +332,7 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
 
         Notes
         -----
-        This method is used to produce Figure 2 in arXiv:XXXX.XXXX (!! TODO !!).
+        This method is used to produce Figure 2 in arXiv:2609.16128
         """
         components = self.components_for_plot(**kwargs)
         self.infomsg(f"getting the {freq} GHz sims to plot for {components = }")
@@ -457,8 +457,8 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
             power spectra being compared.
         use_fig_settings : bool, default=False
             Whether to use the settings that produced Figure 3 in
-            arXiv:XXXX.XXXX (!! TODO !!). This will fix the y-axis limits
-            and tick labels.
+            arXiv:2609.16128. This will fix the y-axis limits and tick 
+            labels.
         **kwargs : dict
             The additional keyword arguments for the power spectra to plot
             are:
@@ -508,7 +508,7 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
 
         Notes
         -----
-        This method is used to produce Figure 3 in arXiv:XXXX.XXXX (!! TODO !!).
+        This method is used to produce Figure 3 in arXiv:2609.16128
 
         If `plot_fdiff=True` and `'radio'` is in the list of `components`,
         we will remove very bright radio sources near the edges of both
@@ -1001,7 +1001,7 @@ class HDSimsPlots(hdsims_spectra.HDSimsSpectra):
 
         Notes
         -----
-        This method is used to produce Figure 4 in arXiv:XXXX.XXXX (!! TODO !!).
+        This method is used to produce Figure 4 in arXiv:2609.16128
         """
         components = simutils.validate_sim_component_names(self.get_kwarg('components', **kwargs))
         if any([component in components for component in ['ksz', 'kappa', 'cmb']]):

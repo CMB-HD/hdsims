@@ -599,7 +599,7 @@ def compare_example_spectra(simlib, fdiff_tol=0.01):
 def print_instructions_for_10x10(hd_sims_dir, lowres_sims_dir=None,
                                  plot_maps=False, reproduce_sims_and_spectra=False,
                                  fig3_fname='fig3.png', fig4_fname='fig4.pdf', fig5_fname='fig5.pdf'):
-    """Print instructions to reproduce the plots in arXiv:XXXX.XXXXX (!! TODO !!), or
+    """Print instructions to reproduce the plots in arXiv:2609.16128, or
     to reproduce all of the simulation products for a 10 degree by
     10 degree patch of sky centered at R.A. = 6 degrees, dec. = 6 degrees.
     """
@@ -620,7 +620,7 @@ def print_instructions_for_10x10(hd_sims_dir, lowres_sims_dir=None,
 
 
 def fig_maps_are_saved(simlib, freq=90):
-    """Check if the maps needed to reproduce Figure 3 in arXiv:XXXX.XXXXX (!! TODO !!) are saved."""
+    """Check if the maps needed to reproduce Figure 3 in arXiv:2609.16128 are saved."""
     all_files_saved = True # begin by assuming the maps are saved
     # we need the map of each component:
     for component in [*si.components, 'kappa']:
@@ -638,7 +638,7 @@ def fig_maps_are_saved(simlib, freq=90):
 
 
 def reproduce_sim_maps_plot(hd_sims_dir, freq=90, show=True, fname=None):
-    """Reproduce Figure 3 of arXiv:XXXX.XXXXX (!! TODO !!)."""
+    """Reproduce Figure 3 of arXiv:2609.16128."""
     simlib = hdsims.HDSims(hd_sims_dir, verbose=True)
     plt_output = simlib.plot_sim_maps(freq, show=show, save=(fname is not None), fname=fname)
     if not show:
@@ -646,7 +646,7 @@ def reproduce_sim_maps_plot(hd_sims_dir, freq=90, show=True, fname=None):
 
 
 def reproduce_sim_spectra_comparison_plot(hd_sims_dir=None, show=True, fname=None):
-    """Reproduce Figure 4 of arXiv:XXXX.XXXXX (!! TODO !!)."""
+    """Reproduce Figure 4 of arXiv:2609.16128."""
     if hd_sims_dir is None:
         hd_sims_dir = precomputed_hdsims_output_dir()
     simlib = hdsims.HDSims(hd_sims_dir, make_output_dirs=False)
@@ -656,7 +656,7 @@ def reproduce_sim_spectra_comparison_plot(hd_sims_dir=None, show=True, fname=Non
 
 
 def reproduce_ksz_kappa_sim_spectra_plot(hd_sims_dir=None, show=True, fname=None):
-    """Reproduce Figure 5 of arXiv:XXXX.XXXXX (!! TODO !!)."""
+    """Reproduce Figure 5 of arXiv:2609.16128."""
     if hd_sims_dir is None:
         hd_sims_dir = precomputed_hdsims_output_dir()
     simlib = hdsims.HDSims(hd_sims_dir, make_output_dirs=False)
@@ -740,7 +740,7 @@ def make_run_hdsims_command(path_to_run_hdsims, hd_sims_dir, lowres_sims_dir,
 
 def load_precomputed_10x10_sim_spectra(component, freq=None, bin_cl=True, bin_dl=False):
     """Load the precomputed power spectra of the simulations used in
-    arXiv:XXXX.XXXXX (!! TODO !!) on a 10 degree by 10 degree patch of sky centered at
+    arXiv:2609.16128 on a 10 degree by 10 degree patch of sky centered at
     R.A. = 6 degrees, dec. = 6 degrees.
 
     See `HDSims.load_signal_sim_power` for more information.
@@ -752,7 +752,7 @@ def load_precomputed_10x10_sim_spectra(component, freq=None, bin_cl=True, bin_dl
 def load_precomputed_10x10_theory(component, binned=False, bin_dl=False):
     """Load the precomputed theory power spectra for the simulations on
     a 10 degree by 10 degree patch of sky centered at R.A. = 6 degrees,
-    dec. = 6 degrees used in arXiv:XXXX.XXXXX (!! TODO !!).
+    dec. = 6 degrees used in arXiv:2609.16128 .
 
     See `HDSims.get_sim_theory` for more information.
     """
@@ -764,7 +764,7 @@ def load_precomputed_10x10_theory(component, binned=False, bin_dl=False):
 def load_precomputed_10x10_inv_mcm(bin_dl=False):
     """Load the precomputed inverse mode-coupling matrices for the
     simulations on a 10 degree by 10 degree patch of sky centered at
-    R.A. = 6 degrees, dec. = 6 degrees used in arXiv:XXXX.XXXXX (!! TODO !!).
+    R.A. = 6 degrees, dec. = 6 degrees used in arXiv:2609.16128 .
 
     See `HDSims.get_mode_coupling` for more information.
     """
@@ -776,7 +776,7 @@ def load_precomputed_10x10_inv_mcm(bin_dl=False):
 def load_precomputed_10x10_binning_matrix(bin_dl=False):
     """Load the binning matrices calculated for the simulations on a
     10 degree by 10 degree patch of sky centered at R.A. = 6 degrees,
-    dec. = 6 degrees used in arXiv:XXXX.XXXXX (!! TODO !!).
+    dec. = 6 degrees used in arXiv:2609.16128
 
     See `HDSims.get_mode_coupling` for more information.
     """

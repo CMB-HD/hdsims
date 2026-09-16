@@ -2003,8 +2003,8 @@ class HDSimsSpectra(hdsimsgen.HDSimsMaps):
         of the theory kSZ or lensing convergence power spectrum to
         generate the corresponding simulation. The lensing convergence
         template power spectrum is calculated by CAMB, using the same
-        cosmology and accuracy as the unlensed CMB theory. See arXiv:XXXX.XXXXX (!! TODO !!)
-        for details about the kSZ template power spectrum.
+        cosmology and accuracy as the unlensed CMB theory. See 
+        arXiv:2609.16128 for details about the kSZ template power spectrum.
 
         The lensed CMB theory power spectra are also calculated by CAMB,
         using the same cosmology and accuracy as the unlensed CMB theory,

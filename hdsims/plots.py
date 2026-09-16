@@ -505,7 +505,7 @@ def plot_sims(sims, freq, show=True, plot_fname=None,
 
     Notes
     -----
-    This function is used to produce Figure 2 in arXiv:XXXX.XXXX (!! TODO !!).
+    This function is used to produce Figure 2 in arXiv:2609.16128
     """
     components = list(sims.keys())
     all_map_names = ['tsz', 'ksz', 'cib', 'radio', 'kappa', 'cmb', 'cmbQ', 'cmbU'] # order to plot them in
@@ -720,7 +720,7 @@ def plot_sim_spectra_comparison(spectra1, spectra2, label1, label2, show=True, p
 
     Notes
     -----
-    This function is used to produce Figure 3 in arXiv:XXXX.XXXX (!! TODO !!).
+    This function is used to produce Figure 3 in arXiv:2609.16128
     """
     all_plt_components = ['tsz', 'ksz', 'cib', 'radio', 'kappa', 'cmb'] # in correct order for subplots
     plt_components = []
@@ -994,7 +994,7 @@ def plot_smallscale_ksz_kappa_spectra(hd_spectra, s10_spectra, theo_spectra, plo
 
     Notes
     -----
-    This function is used to produce Figure 4 in arXiv:XXXX.XXXX (!! TODO !!).
+    This function is used to produce Figure 4 in arXiv:2609.16128
     """
     # settings for the plot:
     labelsize = 12  # axis labels
