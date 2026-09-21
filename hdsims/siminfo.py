@@ -2,6 +2,7 @@
 
 import numpy as np
 import healpy as hp
+import camb
 
 # list of map frequencies (GHz):
 freqs = [30, 90, 148, 219, 277, 350]
@@ -43,18 +44,32 @@ smallscale_alms_seed = 3
 lmin_for_smallscale_alms = {'ksz': 8000, 'kappa': 4000} # use theory alms above this ell
 
 # HD accuracy settings for CAMB:
+camb_version = int(camb.__version__.split('.')[0])
+lens_margin_name = 'lens_output_margin' if (camb_version >= 2) else 'lens_margin'
 hd_camb_accuracy_params = {'AccuracyBoost': 1.1,
                            'lAccuracyBoost': 3.0,
                            'lSampleBoost': 3.0,
                            'DoLateRadTruncation': False,
                            'min_l_logl_sampling': 10000,
-                           'lens_margin': 2050,
+                           lens_margin_name: 2050,
                            'lens_potential_accuracy': 30,
                            'halofit_version': 'mead2016',
                            'NonLinear': 'NonLinear_both',
                            'kmax': 100,
                            'k_per_logint': 130,
                           }
+# define dicts to pass to each `camb.model.CAMBparams` method
+# when updating accuracy of an existing `CAMBparams` instance:
+camb_accuracy_params = {}
+camb_matter_power_params = {}
+camb_lmax_params = {}
+for param in ['AccuracyBoost', 'lAccuracyBoost', 'lSampleBoost',
+              'DoLateRadTruncation', 'min_l_logl_sampling']:
+    camb_accuracy_params[param] = hd_camb_accuracy_params[param]
+for param in ['kmax', 'k_per_logint']:
+    camb_matter_power_params[param] = hd_camb_accuracy_params[param]
+for param in [lens_margin_name, 'lens_potential_accuracy']:
+    camb_lmax_params[param] = hd_camb_accuracy_params[param]
 
 
 # S10 sims:

@@ -546,13 +546,12 @@ def get_default_cambparams_for_sim(lmax=si.lmax4theo):
     cosmo_params = {'H0': pars.H0, 'ombh2': pars.ombh2, 'omch2': pars.omch2, 'nnu': pars.N_eff,
                     'Alens': pars.Alens, 'YHe': pars.YHe, 'TCMB': pars.TCMB, 'mnu': 0.06, 'num_massive_neutrinos': 3}
     # update accuracy:
-    pars.set_accuracy(AccuracyBoost=1.1, lSampleBoost=3.0, lAccuracyBoost=3.0,
-                      DoLateRadTruncation=False, min_l_logl_sampling=10000)
+    pars.set_accuracy(**si.camb_accuracy_params)
     pars.set_cosmology(**cosmo_params)
-    pars.set_matter_power(kmax=100, k_per_logint=130)
-    pars.set_for_lmax(lmax+500, lens_potential_accuracy=30, lens_margin=2050)
-    pars.NonLinear = camb.model.NonLinear_both
-    pars.NonLinearModel.set_params("mead2016")
+    pars.set_matter_power(**si.camb_matter_power_params)
+    pars.set_for_lmax(lmax+500, **si.camb_lmax_params)
+    pars.NonLinear = si.hd_camb_accuracy_params['NonLinear']
+    pars.NonLinearModel.set_params(si.hd_camb_accuracy_params['halofit_version'])
     return pars
 
 
